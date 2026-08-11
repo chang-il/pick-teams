@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>농구 동호회 팀 나누기</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --surface-page:   #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-1:       #2a78d6; /* blue   - 가드 / 총점 바 */
+    --series-2:       #eb6834; /* orange - 포워드 */
+    --series-3:       #1baf7a; /* aqua   - 센터 */
+    --series-4:       #eda100; /* yellow - 무관/기타 */
+    --series-5:       #e87ba4;
+    --series-6:       #008300;
+    --series-7:       #4a3aa7;
+    --series-8:       #e34948;
+    --status-good:    #0ca30c;
+    --status-warning: #fab219;
+    --status-critical:#d03b3b;
+    --seq-100: #cde2fb; --seq-250: #86b6ef; --seq-400: #3987e5; --seq-450:#2a78d6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --surface-page:   #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-1:       #3987e5;
+      --series-2:       #d95926;
+      --series-3:       #199e70;
+      --series-4:       #c98500;
+      --series-5:       #d55181;
+      --series-6:       #008300;
+      --series-7:       #9085e9;
+      --series-8:       #e66767;
+      --status-good:    #0ca30c;
+      --status-warning: #fab219;
+      --status-critical:#d03b3b;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --surface-page:   #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --series-1:       #3987e5;
+    --series-2:       #d95926;
+    --series-3:       #199e70;
+    --series-4:       #c98500;
+    --series-5:       #d55181;
+    --series-6:       #008300;
+    --series-7:       #9085e9;
+    --series-8:       #e66767;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--surface-page);
+    color: var(--text-primary);
+  }
+  .app { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
+  .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom: 22px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .subtitle { color: var(--text-secondary); font-size: 13.5px; margin: 0; }
+  .theme-toggle {
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary);
+    border-radius: 8px; padding: 7px 12px; font-size: 13px; cursor: pointer;
+  }
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 14px; display:flex; align-items:center; gap:8px; }
+  .card h2 .num { width:20px; height:20px; border-radius:50%; background:var(--series-1); color:#fff; font-size:11px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .attendance-badge { margin-left:auto; font-size: 12.5px; font-weight: 600; color: var(--status-good); background: color-mix(in srgb, var(--status-good) 14%, transparent); border-radius: 999px; padding: 4px 12px; font-variant-numeric: tabular-nums; }
+  .table-toggle-row { display:flex; align-items:center; justify-content:space-between; margin-top:16px; }
+  #playerTableWrapper { max-height: 560px; overflow-y: auto; margin-top: 8px; border: 1px solid var(--border); border-radius: 10px; }
+  #playerTableWrapper table { margin-top: 0; }
+  #playerTableWrapper thead th { position: sticky; top: 0; background: var(--surface-1); z-index: 1; }
+  #playerTableWrapper.collapsed { display: none; }
+
+  .form-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr auto; gap: 10px; align-items: end; }
+  .field { display:flex; flex-direction:column; gap:5px; }
+  .field label { font-size: 12px; color: var(--text-secondary); }
+  input, select {
+    font-family: inherit; font-size: 13.5px; padding: 8px 10px;
+    border-radius: 8px; border: 1px solid var(--border); background: var(--surface-page);
+    color: var(--text-primary); width: 100%;
+  }
+  input:focus, select:focus { outline: 2px solid var(--series-1); outline-offset: 1px; }
+  button {
+    font-family: inherit; cursor: pointer; border: none; border-radius: 8px;
+    font-size: 13.5px; padding: 9px 14px; font-weight: 600;
+  }
+  .btn-primary { background: var(--series-1); color: #fff; }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-secondary { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); }
+  .btn-secondary:hover { color: var(--text-primary); }
+  .btn-danger { background: transparent; color: var(--status-critical); border: 1px solid var(--border); padding: 6px 9px; font-size: 12px; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13.5px; }
+  th { text-align: left; color: var(--text-muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .02em; padding: 6px 8px; border-bottom: 1px solid var(--gridline); }
+  td { padding: 8px; border-bottom: 1px solid var(--gridline); }
+  tr:last-child td { border-bottom: none; }
+  .empty-row td { color: var(--text-muted); text-align:center; padding: 18px; font-style: normal; }
+
+  .pos-badge { display:inline-flex; align-items:center; gap:5px; font-size:12px; padding: 2px 8px 2px 6px; border-radius: 999px; background: var(--surface-page); border:1px solid var(--border); color: var(--text-secondary); }
+  .pos-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+
+  .toolbar { display:flex; gap:10px; margin-top: 12px; flex-wrap: wrap; }
+  .file-input { display:none; }
+
+  .settings-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .weight-row { grid-column: 1 / -1; }
+  .weight-label-row { display:flex; justify-content:space-between; font-size:12px; color:var(--text-secondary); margin-bottom:6px; }
+  input[type=range] { padding: 0; accent-color: var(--series-1); }
+  .stepper { display: flex; align-items: center; gap: 8px; }
+  .stepper input { text-align: center; }
+  .stepper-btn {
+    width: 38px; height: 38px; flex-shrink: 0; padding: 0;
+    border-radius: 8px; border: 1px solid var(--border); background: var(--surface-page);
+    color: var(--text-primary); font-size: 18px; font-weight: 700; line-height: 1;
+  }
+  .stepper-btn:active { background: var(--series-1); color: #fff; border-color: var(--series-1); }
+  .stepper-btn:disabled { opacity: 0.4; }
+  .checkbox-row { display:flex; align-items:center; gap:8px; font-size: 13.5px; }
+  .checkbox-row input { width:auto; }
+
+  .run-row { display:flex; align-items:center; gap:12px; margin-top: 18px; }
+  .run-row .btn-primary { padding: 11px 22px; font-size: 14px; }
+  .hint { font-size: 12px; color: var(--text-muted); }
+
+  .legend { display:flex; gap:16px; flex-wrap:wrap; margin-bottom: 16px; font-size:12.5px; color: var(--text-secondary); }
+  .legend-item { display:flex; align-items:center; gap:6px; }
+  .legend-swatch { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+
+  .balance-chart { margin-bottom: 22px; }
+  .bar-row { display:grid; grid-template-columns: 90px 1fr 54px; align-items:center; gap:10px; margin-bottom: 10px; }
+  .bar-row .bar-label { font-size: 13px; color: var(--text-secondary); text-align:right; }
+  .bar-track { position:relative; height: 20px; background: var(--surface-page); border-radius: 4px; overflow:hidden; }
+  .bar-fill { height: 100%; background: var(--series-1); border-radius: 4px 0 0 4px; }
+  .bar-value { font-size: 12.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+  .teams-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .team-card { border:1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--surface-page); }
+  .team-card-head { display:flex; align-items:center; justify-content:space-between; margin-bottom: 10px; }
+  .team-name { font-size: 14px; font-weight: 700; display:flex; align-items:center; gap:7px; min-width:0; }
+  .team-name-input {
+    font-family: inherit; font-size: 14px; font-weight: 700; color: var(--text-primary);
+    background: transparent; border: 1px solid transparent; border-radius: 6px;
+    padding: 2px 6px; margin: -2px -6px; width: 6.5em; min-width: 3em;
+  }
+  .team-name-input:hover { border-color: var(--border); }
+  .team-name-input:focus { outline: none; border-color: var(--series-1); background: var(--surface-1); }
+  .team-count-suffix { color: var(--text-secondary); font-weight: 400; flex-shrink: 0; }
+  .team-dot { width:10px; height:10px; border-radius: 3px; }
+  .team-stats { display:flex; gap:12px; font-size:12px; color: var(--text-secondary); margin-bottom:10px; }
+  .team-stats b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .team-player-list { list-style:none; padding:0; margin:0 0 10px; }
+  .team-player-list li { display:flex; align-items:center; gap:8px; padding: 6px 0; border-bottom: 1px dashed var(--gridline); font-size: 13px; }
+  .team-player-list li:last-child { border-bottom:none; }
+  .player-name { flex-shrink:0; }
+  .player-meta { display:flex; align-items:center; gap:6px; color: var(--text-secondary); font-size:11.5px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .team-move-select { flex-shrink:0; width:auto; max-width:90px; padding:4px 6px; font-size:11.5px; }
+  .pos-tags { display:flex; gap:6px; flex-wrap:wrap; }
+
+  .empty-state { text-align:center; padding: 30px 10px; color: var(--text-muted); font-size: 13.5px; }
+  .footer-note { font-size:11.5px; color: var(--text-muted); margin-top: 26px; text-align:center; line-height:1.6; }
+
+  @media (max-width: 720px) {
+    .form-row { grid-template-columns: 1fr 1fr; }
+    .settings-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="viz-root">
+<div class="app">
+
+  <div class="topbar">
+    <div>
+      <h1>🏀 농구 동호회 팀 나누기</h1>
+      <p class="subtitle">능력치 · 신장 · 포지션을 반영해 균형 잡힌 팀을 자동으로 구성합니다.</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle">다크 모드</button>
+  </div>
+
+  <!-- 1. 선수 명단 -->
+  <div class="card">
+    <h2><span class="num">1</span>선수 명단 <span class="attendance-badge" id="attendanceBadge">참석 0 / 0명</span></h2>
+
+    <div class="form-row">
+      <div class="field">
+        <label for="pName">이름</label>
+        <input id="pName" type="text" placeholder="예: 홍길동">
+      </div>
+      <div class="field">
+        <label for="pAbility">능력치 (1~10)</label>
+        <input id="pAbility" type="number" min="1" max="10" step="1" value="5">
+      </div>
+      <div class="field">
+        <label for="pHeight">신장 (cm)</label>
+        <input id="pHeight" type="number" min="120" max="230" step="1" value="175">
+      </div>
+      <div class="field">
+        <label for="pPosition">포지션</label>
+        <select id="pPosition">
+          <option value="가드">가드</option>
+          <option value="포워드">포워드</option>
+          <option value="센터">센터</option>
+          <option value="무관">무관</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <button class="btn-primary" id="addPlayerBtn">+ 추가</button>
+      </div>
+    </div>
+
+    <div class="table-toggle-row">
+      <span class="hint" style="margin:0;">선수 목록</span>
+      <button class="btn-secondary" id="toggleTableBtn" style="padding:5px 10px;font-size:12px;">목록 펼치기</button>
+    </div>
+
+    <div id="playerTableWrapper" class="collapsed">
+      <table>
+        <thead>
+          <tr><th style="width:50px;">참석</th><th>이름</th><th>능력치</th><th>신장</th><th>포지션</th><th style="min-width:120px;"></th></tr>
+        </thead>
+        <tbody id="playerTableBody">
+          <tr class="empty-row"><td colspan="6">아직 등록된 선수가 없습니다. 위 양식으로 선수를 추가해주세요.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn-secondary" id="selectAllBtn">전체 참석</button>
+      <button class="btn-secondary" id="selectNoneBtn">전체 불참</button>
+      <button class="btn-secondary" id="exportCsvBtn">CSV로 저장</button>
+      <button class="btn-secondary" id="exportTxtBtn">TXT로 저장</button>
+      <button class="btn-secondary" id="importCsvBtn">CSV 불러오기(업데이트)</button>
+      <button class="btn-secondary" id="importTxtBtn">메모장(TXT) 불러오기(업데이트)</button>
+      <button class="btn-secondary" id="sampleBtn">예시 명단 채우기</button>
+      <button class="btn-secondary" id="clearBtn">전체 삭제</button>
+      <input type="file" id="csvFileInput" class="file-input" accept=".csv,text/csv">
+      <input type="file" id="txtFileInput" class="file-input" accept=".txt,text/plain">
+    </div>
+    <p class="hint">"참석" 체크박스로 선택된 선수만 팀 나누기에 포함됩니다. 명단은 항상 이름 가나다순으로 정렬되어 표시됩니다. CSV·TXT 불러오기는 이름이 명단에 하나만 있을 때만 능력치·신장·포지션을 업데이트하고, 그 외(새 이름이거나 동명이인이 이미 있는 경우)는 새 선수로 추가합니다 — 동명이인은 삭제·병합되지 않고 모두 유지됩니다. (열 순서: 이름, 능력치, 신장, 포지션 / TXT는 쉼표 또는 탭으로 구분된 메모장 파일을 지원합니다)</p>
+    <p class="hint">표의 "수정" 버튼으로 개별 선수 정보를 바로 고칠 수 있습니다. 명단은 이 브라우저에 자동 저장되어 <span id="autosaveStatus">다음에 다시 열어도 그대로 남아 있습니다.</span> 다른 기기·브라우저에서도 쓰려면 "CSV로 저장" 또는 "TXT로 저장"으로 내려받아 옮겨주세요.</p>
+  </div>
+
+  <!-- 2. 팀 나누기 설정 -->
+  <div class="card">
+    <h2><span class="num">2</span>팀 나누기 설정</h2>
+    <div class="settings-grid">
+      <div class="field">
+        <label for="teamCount">팀 수</label>
+        <div class="stepper">
+          <button type="button" class="stepper-btn" id="teamCountDown" aria-label="팀 수 감소">−</button>
+          <input id="teamCount" type="number" min="2" max="8" step="1" value="2" inputmode="numeric">
+          <button type="button" class="stepper-btn" id="teamCountUp" aria-label="팀 수 증가">＋</button>
+        </div>
+      </div>
+      <div class="field checkbox-row" style="margin-top:20px;">
+        <input type="checkbox" id="considerPosition" checked>
+        <label for="considerPosition">포지션 균형도 함께 고려</label>
+      </div>
+      <div class="field checkbox-row" style="margin-top:20px;">
+        <input type="checkbox" id="randomize">
+        <label for="randomize">동점자는 무작위로 섞기</label>
+      </div>
+
+      <div class="field weight-row">
+        <div class="weight-label-row">
+          <span>능력치 중요도 <b id="abilityWeightLabel">60%</b></span>
+          <span>신장 중요도 <b id="heightWeightLabel">40%</b></span>
+        </div>
+        <input type="range" id="weightSlider" min="0" max="100" value="60">
+      </div>
+    </div>
+
+    <div class="run-row">
+      <button class="btn-primary" id="splitBtn">🏀 팀 나누기 실행</button>
+      <span class="hint" id="playerCountHint">등록된 선수: 0명</span>
+    </div>
+  </div>
+
+  <!-- 3. 결과 -->
+  <div class="card" id="resultCard" style="display:none;">
+    <h2><span class="num">3</span>팀 구성 결과</h2>
+    <p class="hint" style="margin-top:-8px;">개인별 능력치 점수는 표시되지 않습니다. 선수 이름 옆 드롭다운으로 원하는 팀으로 직접 옮길 수 있습니다.</p>
+
+    <div class="legend" id="posLegend"></div>
+
+    <div class="balance-chart">
+      <div class="bar-label" style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">팀별 종합 점수 (능력치·신장 가중 합산)</div>
+      <div id="balanceChart"></div>
+    </div>
+
+    <div class="teams-grid" id="teamsGrid"></div>
+  </div>
+
+  <!-- 4. 공지용 결과 -->
+  <div class="card" id="publicResultCard" style="display:none;">
+    <h2><span class="num">4</span>공지용 결과 <span class="hint" style="font-weight:400;">(평균 능력치·총점 비공개)</span></h2>
+    <p class="hint" style="margin-top:-8px;">동호회 단톡방·게시판 등에 그대로 공지할 수 있도록 능력치·총점 없이 팀 구성만 보여줍니다.</p>
+
+    <div id="publicCaptureArea" style="padding:6px 2px;background:var(--surface-1);">
+      <div style="font-weight:700;font-size:15px;margin-bottom:14px;">🏀 팀 구성 결과</div>
+      <div class="legend" id="posLegendPublic"></div>
+      <div class="teams-grid" id="teamsGridPublic"></div>
+    </div>
+
+    <div class="toolbar" style="margin-top:16px;">
+      <button class="btn-primary" id="shareKakaoBtn">💬 카카오톡으로 공유</button>
+      <button class="btn-secondary" id="copyPublicBtn">텍스트로 복사</button>
+      <button class="btn-secondary" id="exportPublicTxtBtn">TXT로 저장</button>
+      <button class="btn-secondary" id="exportPublicImgBtn">🖼️ 이미지로 저장</button>
+    </div>
+    <p class="hint" id="shareHint" style="margin-top:8px;">모바일에서는 "카카오톡으로 공유" 버튼을 누르면 기기의 공유 시트가 열리고, 거기서 카카오톡을 선택해 바로 보낼 수 있습니다. PC 등 공유 시트를 지원하지 않는 환경에서는 대신 텍스트가 복사되니 카카오톡 채팅창에 붙여넣어 주세요.</p>
+  </div>
+
+  <div class="footer-note">능력치는 1~10점 자기평가/운영진 평가 기준, 종합 점수는 능력치와 신장을 각각 0~100으로 정규화한 뒤 위 가중치로 합산한 값입니다.</div>
+
+</div>
+</div>
+
+<script>
+(function() {
+  const SERIES = ['var(--series-1)','var(--series-2)','var(--series-3)','var(--series-4)','var(--series-5)','var(--series-6)','var(--series-7)','var(--series-8)'];
+  const POSITIONS = ['가드','포워드','센터','무관'];
+  const DEFAULT_TEAM_NAMES = ['네이비', '옐로우', '화이트'];
+  function defaultTeamName(i) { return DEFAULT_TEAM_NAMES[i] || ('팀 ' + (i + 1)); }
+  const POS_COLOR = { '가드': SERIES[0], '포워드': SERIES[1], '센터': SERIES[2], '무관': SERIES[3] };
+
+  let players = [];
+  let idCounter = 1;
+  let lastTeams = null;
+  let editingId = null;
+
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- Autosave (localStorage) ----------
+  const STORAGE_KEY = 'basketballTeamSplit.roster.v1';
+  let storageAvailable = true;
+  try {
+    const testKey = '__storage_test__';
+    localStorage.setItem(testKey, '1');
+    localStorage.removeItem(testKey);
+  } catch (e) {
+    storageAvailable = false;
+  }
+
+  function saveToStorage() {
+    if (!storageAvailable) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(players.map(({ id, ...rest }) => rest)));
+    } catch (e) { /* storage full or blocked - ignore, in-memory state still works */ }
+  }
+
+  function loadFromStorage() {
+    if (!storageAvailable) return;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (!Array.isArray(data)) return;
+      players = data.map(d => ({
+        id: idCounter++,
+        name: String(d.name || '이름없음'),
+        ability: clampAbility(d.ability),
+        height: clampHeight(d.height),
+        position: normalizePosition(d.position),
+        attending: d.attending !== false
+      }));
+    } catch (e) { /* corrupted data - start fresh */ }
+  }
+
+  // ---------- Theme toggle ----------
+  const themeBtn = $('themeToggle');
+  let theme = 'auto';
+  themeBtn.addEventListener('click', () => {
+    theme = (theme === 'dark') ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+    themeBtn.textContent = theme === 'dark' ? '라이트 모드' : '다크 모드';
+  });
+
+  // ---------- Player table collapse/expand ----------
+  // Starts collapsed so the roster (which can get long) doesn't dominate the screen on load.
+  let tableExpanded = false;
+  function updateToggleTableBtnLabel() {
+    const btn = $('toggleTableBtn');
+    if (!btn) return;
+    btn.textContent = tableExpanded ? '목록 접기' : '목록 펼치기 (' + players.length + '명)';
+  }
+  $('toggleTableBtn').addEventListener('click', () => {
+    tableExpanded = !tableExpanded;
+    $('playerTableWrapper').classList.toggle('collapsed', !tableExpanded);
+    updateToggleTableBtnLabel();
+  });
+
+  // ---------- Team count stepper (explicit +/- buttons, since number-input spinners are
+  // tiny or hidden entirely on many mobile browsers) ----------
+  function adjustTeamCount(delta) {
+    const input = $('teamCount');
+    const next = Math.min(8, Math.max(2, (parseInt(input.value, 10) || 2) + delta));
+    input.value = next;
+    updateTeamCountStepperState();
+  }
+  function updateTeamCountStepperState() {
+    const val = parseInt($('teamCount').value, 10) || 2;
+    $('teamCountDown').disabled = val <= 2;
+    $('teamCountUp').disabled = val >= 8;
+  }
+  $('teamCountDown').addEventListener('click', () => adjustTeamCount(-1));
+  $('teamCountUp').addEventListener('click', () => adjustTeamCount(1));
+  $('teamCount').addEventListener('input', updateTeamCountStepperState);
+  updateTeamCountStepperState();
+
+  // ---------- Weight slider ----------
+  const weightSlider = $('weightSlider');
+  weightSlider.addEventListener('input', updateWeightLabels);
+  function updateWeightLabels() {
+    const a = parseInt(weightSlider.value, 10);
+    $('abilityWeightLabel').textContent = a + '%';
+    $('heightWeightLabel').textContent = (100 - a) + '%';
+  }
+  updateWeightLabels();
+
+  // ---------- Player management ----------
+  function positionOptionsHtml(selected) {
+    return POSITIONS.map(pos => '<option value="' + pos + '"' + (pos === selected ? ' selected' : '') + '>' + pos + '</option>').join('');
+  }
+
+  const nameCollator = new Intl.Collator('ko-KR');
+  function sortPlayersByName() {
+    players.sort((a, b) => nameCollator.compare(a.name, b.name));
+  }
+
+  function renderPlayerTable() {
+    sortPlayersByName();
+    const body = $('playerTableBody');
+    body.innerHTML = '';
+    if (players.length === 0) {
+      body.innerHTML = '<tr class="empty-row"><td colspan="6">아직 등록된 선수가 없습니다. 위 양식으로 선수를 추가해주세요.</td></tr>';
+    } else {
+      players.forEach(p => {
+        const tr = document.createElement('tr');
+        if (!p.attending) tr.style.opacity = '0.5';
+        if (p.id === editingId) {
+          tr.innerHTML =
+            '<td style="text-align:center;"><input type="checkbox" data-toggle="' + p.id + '" ' + (p.attending ? 'checked' : '') + '></td>' +
+            '<td><input type="text" data-edit="name" value="' + escapeHtml(p.name) + '" style="min-width:100px;"></td>' +
+            '<td><input type="number" data-edit="ability" min="1" max="10" step="1" value="' + p.ability + '" style="width:70px;"></td>' +
+            '<td><input type="number" data-edit="height" min="120" max="230" step="1" value="' + p.height + '" style="width:80px;"></td>' +
+            '<td><select data-edit="position">' + positionOptionsHtml(p.position) + '</select></td>' +
+            '<td style="white-space:nowrap;"><button class="btn-primary" data-save="' + p.id + '" style="padding:6px 10px;font-size:12px;">저장</button> ' +
+              '<button class="btn-secondary" data-cancel="' + p.id + '" style="padding:6px 10px;font-size:12px;">취소</button></td>';
+        } else {
+          tr.innerHTML =
+            '<td style="text-align:center;"><input type="checkbox" data-toggle="' + p.id + '" ' + (p.attending ? 'checked' : '') + '></td>' +
+            '<td>' + escapeHtml(p.name) + '</td>' +
+            '<td>' + p.ability + '</td>' +
+            '<td>' + p.height + 'cm</td>' +
+            '<td><span class="pos-badge"><span class="pos-dot" style="background:' + POS_COLOR[p.position] + '"></span>' + p.position + '</span></td>' +
+            '<td style="white-space:nowrap;"><button class="btn-secondary" data-edit-id="' + p.id + '" style="padding:6px 10px;font-size:12px;">수정</button> ' +
+              '<button class="btn-danger" data-id="' + p.id + '">삭제</button></td>';
+        }
+        body.appendChild(tr);
+      });
+    }
+    const attendingCount = players.filter(p => p.attending).length;
+    $('playerCountHint').textContent = '참석: ' + attendingCount + '명 / 전체 ' + players.length + '명';
+    $('attendanceBadge').textContent = '참석 ' + attendingCount + ' / ' + players.length + '명';
+    updateToggleTableBtnLabel();
+    saveToStorage();
+
+    body.querySelectorAll('input[data-toggle]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const p = players.find(pl => pl.id === parseInt(cb.dataset.toggle, 10));
+        if (p) p.attending = cb.checked;
+        renderPlayerTable();
+      });
+    });
+    body.querySelectorAll('button[data-id]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        players = players.filter(p => p.id !== parseInt(btn.dataset.id, 10));
+        renderPlayerTable();
+      });
+    });
+    body.querySelectorAll('button[data-edit-id]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        editingId = parseInt(btn.dataset.editId, 10);
+        renderPlayerTable();
+      });
+    });
+    body.querySelectorAll('button[data-cancel]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        editingId = null;
+        renderPlayerTable();
+      });
+    });
+    body.querySelectorAll('button[data-save]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = parseInt(btn.dataset.save, 10);
+        const row = btn.closest('tr');
+        const name = row.querySelector('[data-edit="name"]').value.trim();
+        const ability = Math.min(10, Math.max(1, parseInt(row.querySelector('[data-edit="ability"]').value, 10) || 5));
+        const height = Math.min(230, Math.max(120, parseInt(row.querySelector('[data-edit="height"]').value, 10) || 175));
+        const position = row.querySelector('[data-edit="position"]').value;
+        if (!name) { row.querySelector('[data-edit="name"]').focus(); return; }
+        const p = players.find(pl => pl.id === id);
+        if (p) { p.name = name; p.ability = ability; p.height = height; p.position = position; }
+        editingId = null;
+        renderPlayerTable();
+      });
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  $('addPlayerBtn').addEventListener('click', () => {
+    const name = $('pName').value.trim();
+    const ability = Math.min(10, Math.max(1, parseInt($('pAbility').value, 10) || 5));
+    const height = Math.min(230, Math.max(120, parseInt($('pHeight').value, 10) || 175));
+    const position = $('pPosition').value;
+    if (!name) { $('pName').focus(); return; }
+    players.push({ id: idCounter++, name, ability, height, position, attending: true });
+    $('pName').value = '';
+    $('pName').focus();
+    renderPlayerTable();
+  });
+
+  $('pName').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('addPlayerBtn').click(); });
+
+  $('clearBtn').addEventListener('click', () => {
+    if (players.length && !confirm('등록된 선수 명단을 모두 삭제할까요?')) return;
+    players = [];
+    renderPlayerTable();
+  });
+
+  $('selectAllBtn').addEventListener('click', () => {
+    players.forEach(p => p.attending = true);
+    renderPlayerTable();
+  });
+
+  $('selectNoneBtn').addEventListener('click', () => {
+    players.forEach(p => p.attending = false);
+    renderPlayerTable();
+  });
+
+  $('sampleBtn').addEventListener('click', () => {
+    const sample = [
+      ['김민준',8,188,'센터'], ['이서준',7,182,'포워드'], ['박도윤',6,178,'포워드'],
+      ['최시우',9,172,'가드'], ['정하준',5,180,'포워드'], ['강주원',7,168,'가드'],
+      ['조은우',6,190,'센터'], ['윤지호',8,175,'가드'], ['임재윤',4,177,'무관'],
+      ['한도현',6,184,'포워드'], ['오승현',9,169,'가드'], ['서준혁',5,192,'센터'],
+      ['신유준',7,173,'가드'], ['권태윤',6,181,'포워드'], ['황민재',8,187,'센터'],
+      ['배건우',5,171,'가드']
+    ];
+    sample.forEach(([name, ability, height, position]) => {
+      players.push({ id: idCounter++, name, ability, height, position, attending: true });
+    });
+    renderPlayerTable();
+  });
+
+  // ---------- Upsert helper (used by CSV import) ----------
+  // Updates a player only when their name matches exactly one existing (pre-import) player.
+  // Duplicate names are never merged or deleted - if a name is ambiguous (already duplicated,
+  // or repeated within the same file), every record is kept as its own separate entry.
+  function upsertPlayers(records) {
+    const preExisting = players.slice();
+    let added = 0, updated = 0;
+    records.forEach(r => {
+      const matches = preExisting.filter(p => p.name === r.name);
+      if (matches.length === 1) {
+        const target = matches[0];
+        target.ability = r.ability;
+        target.height = r.height;
+        target.position = r.position;
+        updated++;
+      } else {
+        players.push({ id: idCounter++, name: r.name, ability: r.ability, height: r.height, position: r.position, attending: true });
+        added++;
+      }
+    });
+    return { added, updated };
+  }
+
+  function clampAbility(v) { return Math.min(10, Math.max(1, parseInt(v, 10) || 5)); }
+  function clampHeight(v) { return Math.min(230, Math.max(120, parseInt(v, 10) || 175)); }
+  function normalizePosition(v) {
+    const s = String(v || '').trim();
+    return POSITIONS.includes(s) ? s : '무관';
+  }
+
+  // ---------- CSV export / import ----------
+  function parseCsvLine(line) {
+    // simple CSV split supporting quoted fields with commas
+    const out = [];
+    let cur = '', inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (inQuotes) {
+        if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (c === '"') { inQuotes = false; }
+        else { cur += c; }
+      } else {
+        if (c === '"') inQuotes = true;
+        else if (c === ',') { out.push(cur); cur = ''; }
+        else cur += c;
+      }
+    }
+    out.push(cur);
+    return out.map(s => s.trim());
+  }
+
+  function csvField(v) {
+    const s = String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  // Splits a line by tab if it contains one (Excel/메모장 paste), otherwise by comma (CSV).
+  function parseDelimitedLine(line) {
+    if (line.indexOf('\t') !== -1) {
+      return line.split('\t').map(s => s.trim().replace(/^"(.*)"$/, '$1'));
+    }
+    return parseCsvLine(line);
+  }
+
+  // Shared parser for CSV and TXT (comma- or tab-delimited) roster files.
+  function parseRosterText(text) {
+    const clean = text.replace(/^﻿/, '');
+    const lines = clean.split(/\r\n|\n|\r/).filter(l => l.trim().length > 0);
+    if (!lines.length) throw new Error('빈 파일');
+
+    let startIdx = 0;
+    const firstCells = parseDelimitedLine(lines[0]).map(c => c.toLowerCase());
+    const headerHints = ['이름', 'name', '능력치', 'ability', '신장', 'height', '포지션', 'position'];
+    if (firstCells.some(c => headerHints.includes(c))) startIdx = 1;
+
+    const records = [];
+    for (let i = startIdx; i < lines.length; i++) {
+      const cells = parseDelimitedLine(lines[i]);
+      if (!cells[0]) continue;
+      records.push({
+        name: cells[0],
+        ability: clampAbility(cells[1]),
+        height: clampHeight(cells[2]),
+        position: normalizePosition(cells[3])
+      });
+    }
+    if (!records.length) throw new Error('데이터 없음');
+    return records;
+  }
+
+  function handleRosterFile(file, inputEl, formatLabel) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const records = parseRosterText(reader.result);
+        const { added, updated } = upsertPlayers(records);
+        renderPlayerTable();
+        alert(formatLabel + ' 반영 완료: 신규 ' + added + '명 추가, ' + updated + '명 업데이트되었습니다.');
+      } catch (err) {
+        alert(formatLabel + ' 파일을 읽을 수 없습니다. 열 순서(이름, 능력치, 신장, 포지션)를 확인해주세요.');
+      }
+      inputEl.value = '';
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  function downloadFile(content, filename, mime) {
+    const blob = new Blob(['﻿' + content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function rosterRows() {
+    return [['이름', '능력치', '신장', '포지션']].concat(
+      players.map(p => [p.name, p.ability, p.height, p.position])
+    );
+  }
+
+  $('exportCsvBtn').addEventListener('click', () => {
+    if (!players.length) { alert('저장할 선수 명단이 없습니다.'); return; }
+    const csv = rosterRows().map(r => r.map(csvField).join(',')).join('\r\n');
+    downloadFile(csv, 'basketball_roster.csv', 'text/csv;charset=utf-8;');
+  });
+
+  $('exportTxtBtn').addEventListener('click', () => {
+    if (!players.length) { alert('저장할 선수 명단이 없습니다.'); return; }
+    const txt = rosterRows().map(r => r.join('\t')).join('\r\n');
+    downloadFile(txt, 'basketball_roster.txt', 'text/plain;charset=utf-8;');
+  });
+
+  $('importCsvBtn').addEventListener('click', () => $('csvFileInput').click());
+  $('csvFileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    handleRosterFile(file, $('csvFileInput'), 'CSV');
+  });
+
+  $('importTxtBtn').addEventListener('click', () => $('txtFileInput').click());
+  $('txtFileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    handleRosterFile(file, $('txtFileInput'), 'TXT');
+  });
+
+  // ---------- Team splitting ----------
+  function splitTeams(list, teamCount, abilityWeightPct, considerPosition, randomize) {
+    const abilityWeight = abilityWeightPct / 100;
+    const heightWeight = 1 - abilityWeight;
+
+    const heights = list.map(p => p.height);
+    const minH = Math.min(...heights), maxH = Math.max(...heights);
+    const range = maxH - minH;
+
+    const scored = list.map(p => {
+      const normAbility = p.ability / 10;
+      const normHeight = range > 0 ? (p.height - minH) / range : 0.5;
+      const score = (abilityWeight * normAbility + heightWeight * normHeight) * 100;
+      return Object.assign({}, p, { score, rand: Math.random() });
+    });
+
+    scored.sort((a, b) => {
+      if (randomize) {
+        // add small random jitter so equal/near-equal scores can swap order
+        const jitterA = a.score + (a.rand - 0.5) * 0.01;
+        const jitterB = b.score + (b.rand - 0.5) * 0.01;
+        return jitterB - jitterA;
+      }
+      return b.score - a.score;
+    });
+
+    const n = scored.length;
+    const base = Math.floor(n / teamCount);
+    const remainder = n % teamCount;
+    const capacities = Array.from({ length: teamCount }, (_, i) => base + (i < remainder ? 1 : 0));
+
+    const teams = Array.from({ length: teamCount }, (_, i) => ({
+      name: defaultTeamName(i),
+      color: SERIES[i % SERIES.length],
+      players: [],
+      totalScore: 0,
+      totalAbility: 0,
+      totalHeight: 0,
+      positionCounts: {}
+    }));
+
+    scored.forEach(player => {
+      let candidateIdx = [];
+      for (let i = 0; i < teamCount; i++) {
+        if (teams[i].players.length < capacities[i]) candidateIdx.push(i);
+      }
+      candidateIdx.sort((ia, ib) => {
+        const ta = teams[ia], tb = teams[ib];
+        if (considerPosition) {
+          const posA = ta.positionCounts[player.position] || 0;
+          const posB = tb.positionCounts[player.position] || 0;
+          if (posA !== posB) return posA - posB;
+        }
+        return ta.totalScore - tb.totalScore;
+      });
+      const chosen = teams[candidateIdx[0]];
+      chosen.players.push(player);
+      chosen.totalScore += player.score;
+      chosen.totalAbility += player.ability;
+      chosen.totalHeight += player.height;
+      chosen.positionCounts[player.position] = (chosen.positionCounts[player.position] || 0) + 1;
+    });
+
+    return teams;
+  }
+
+  $('splitBtn').addEventListener('click', () => {
+    const attendingPlayers = players.filter(p => p.attending);
+    if (attendingPlayers.length < 2) { alert('참석으로 체크된 선수가 2명 이상이어야 합니다.'); return; }
+    const teamCount = Math.min(8, Math.max(2, parseInt($('teamCount').value, 10) || 2));
+    if (attendingPlayers.length < teamCount) { alert('팀 수보다 참석 인원이 적습니다.'); return; }
+    const abilityWeightPct = parseInt(weightSlider.value, 10);
+    const considerPosition = $('considerPosition').checked;
+    const randomize = $('randomize').checked;
+
+    lastTeams = splitTeams(attendingPlayers, teamCount, abilityWeightPct, considerPosition, randomize);
+    renderResults(lastTeams);
+  });
+
+  function renderResults(teams) {
+    $('resultCard').style.display = 'block';
+
+    // position legend
+    const usedPositions = POSITIONS.filter(pos => teams.some(t => t.positionCounts[pos]));
+    $('posLegend').innerHTML = usedPositions.map(pos =>
+      '<span class="legend-item"><span class="legend-swatch" style="background:' + POS_COLOR[pos] + '"></span>' + pos + '</span>'
+    ).join('');
+
+    // balance chart (total score per team)
+    const maxScore = Math.max(...teams.map(t => t.totalScore), 1);
+    $('balanceChart').innerHTML = teams.map(t =>
+      '<div class="bar-row">' +
+        '<div class="bar-label">' + t.name + '</div>' +
+        '<div class="bar-track"><div class="bar-fill" style="width:' + Math.max(2, (t.totalScore / maxScore) * 100) + '%; background:' + t.color + '"></div></div>' +
+        '<div class="bar-value">' + t.totalScore.toFixed(1) + '</div>' +
+      '</div>'
+    ).join('');
+
+    // team cards
+    $('teamsGrid').innerHTML = teams.map((t, teamIdx) => {
+      const hasPlayers = t.players.length > 0;
+      const avgAbility = hasPlayers ? (t.totalAbility / t.players.length).toFixed(1) : '-';
+      const avgHeight = hasPlayers ? (t.totalHeight / t.players.length).toFixed(1) : '-';
+      const posTags = Object.keys(t.positionCounts).map(pos =>
+        '<span class="pos-badge"><span class="pos-dot" style="background:' + POS_COLOR[pos] + '"></span>' + pos + ' ' + t.positionCounts[pos] + '</span>'
+      ).join('');
+      const teamOptions = teams.map((ot, i) => '<option value="' + i + '"' + (i === teamIdx ? ' selected' : '') + '>' + ot.name + '</option>').join('');
+      const playerRows = t.players
+        .slice()
+        .sort((a, b) => nameCollator.compare(a.name, b.name))
+        .map(p =>
+          '<li>' +
+            '<span class="player-name">' + escapeHtml(p.name) + '</span>' +
+            '<span class="player-meta"><span class="pos-dot" style="background:' + POS_COLOR[p.position] + '"></span>' + p.position + ' · ' + p.height + 'cm</span>' +
+            '<select class="team-move-select" data-player-id="' + p.id + '" title="다른 팀으로 이동">' + teamOptions + '</select>' +
+          '</li>'
+        ).join('');
+
+      return '<div class="team-card">' +
+        '<div class="team-card-head">' +
+          '<div class="team-name">' +
+            '<span class="team-dot" style="background:' + t.color + '"></span>' +
+            '<input type="text" class="team-name-input" data-team-idx="' + teamIdx + '" value="' + escapeHtml(t.name) + '" title="팀 이름 수정">' +
+            '<span class="team-count-suffix">(' + t.players.length + '명)</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="team-stats"><span>평균 능력치 <b>' + avgAbility + '</b></span><span>평균 신장 <b>' + avgHeight + 'cm</b></span><span>총점 <b>' + t.totalScore.toFixed(1) + '</b></span></div>' +
+        '<div class="pos-tags" style="margin-bottom:10px;">' + posTags + '</div>' +
+        (hasPlayers ? '<ul class="team-player-list">' + playerRows + '</ul>' : '<p class="hint" style="margin:6px 0 0;">배정된 선수가 없습니다.</p>') +
+      '</div>';
+    }).join('');
+
+    $('teamsGrid').querySelectorAll('.team-move-select').forEach(sel => {
+      sel.addEventListener('change', () => {
+        movePlayerToTeam(parseInt(sel.dataset.playerId, 10), parseInt(sel.value, 10));
+      });
+    });
+
+    $('teamsGrid').querySelectorAll('.team-name-input').forEach(input => {
+      input.addEventListener('change', () => renameTeam(input, teams));
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
+      input.addEventListener('input', () => autosizeTeamNameInput(input));
+      autosizeTeamNameInput(input);
+    });
+
+    renderPublicResults(teams);
+  }
+
+  let _measureCanvas = null;
+  function autosizeTeamNameInput(input) {
+    if (!_measureCanvas) _measureCanvas = document.createElement('canvas');
+    const ctx = _measureCanvas.getContext('2d');
+    const style = getComputedStyle(input);
+    ctx.font = style.fontWeight + ' ' + style.fontSize + ' ' + style.fontFamily;
+    const textWidth = ctx.measureText(input.value || '팀').width;
+    input.style.width = Math.max(44, Math.ceil(textWidth) + 22) + 'px';
+  }
+
+  function renameTeam(input, teams) {
+    const idx = parseInt(input.dataset.teamIdx, 10);
+    const team = teams[idx];
+    const newName = input.value.trim();
+    team.name = newName || defaultTeamName(idx);
+    renderResults(teams);
+  }
+
+  // 공지용 결과: 평균 능력치·총점을 뺀, 팀 구성만 보여주는 버전
+  function renderPublicResults(teams) {
+    $('publicResultCard').style.display = 'block';
+
+    const usedPositions = POSITIONS.filter(pos => teams.some(t => t.positionCounts[pos]));
+    $('posLegendPublic').innerHTML = usedPositions.map(pos =>
+      '<span class="legend-item"><span class="legend-swatch" style="background:' + POS_COLOR[pos] + '"></span>' + pos + '</span>'
+    ).join('');
+
+    $('teamsGridPublic').innerHTML = teams.map(t => {
+      const hasPlayers = t.players.length > 0;
+      const posTags = Object.keys(t.positionCounts).map(pos =>
+        '<span class="pos-badge"><span class="pos-dot" style="background:' + POS_COLOR[pos] + '"></span>' + pos + ' ' + t.positionCounts[pos] + '</span>'
+      ).join('');
+      const playerRows = t.players
+        .slice()
+        .sort((a, b) => nameCollator.compare(a.name, b.name))
+        .map(p =>
+          '<li>' +
+            '<span class="player-name">' + escapeHtml(p.name) + '</span>' +
+            '<span class="player-meta"><span class="pos-dot" style="background:' + POS_COLOR[p.position] + '"></span>' + p.position + ' · ' + p.height + 'cm</span>' +
+          '</li>'
+        ).join('');
+
+      return '<div class="team-card">' +
+        '<div class="team-card-head">' +
+          '<div class="team-name"><span class="team-dot" style="background:' + t.color + '"></span>' + t.name + ' (' + t.players.length + '명)</div>' +
+        '</div>' +
+        '<div class="pos-tags" style="margin-bottom:10px;">' + posTags + '</div>' +
+        (hasPlayers ? '<ul class="team-player-list">' + playerRows + '</ul>' : '<p class="hint" style="margin:6px 0 0;">배정된 선수가 없습니다.</p>') +
+      '</div>';
+    }).join('');
+  }
+
+  const SHARE_TITLE = '이번 주 팀 발표';
+
+  function buildPublicResultText(teams) {
+    return teams.map(t => {
+      const header = t.name + ' (' + t.players.length + '명)';
+      const names = t.players
+        .slice()
+        .sort((a, b) => nameCollator.compare(a.name, b.name))
+        .map(p => '- ' + p.name + ' (' + p.position + ')')
+        .join('\n');
+      return header + '\n' + (names || '(배정된 선수 없음)');
+    }).join('\n\n');
+  }
+
+  // Title line, then a blank line, then the team breakdown - this is baked directly into the
+  // message body (not left to the separate Web Share "title" field) because many share targets,
+  // including KakaoTalk, either ignore that field or format it differently.
+  function buildShareMessage(teams) {
+    return SHARE_TITLE + '\n\n' + buildPublicResultText(teams);
+  }
+
+  // Counts Hangul/CJK characters as double-width (roughly how they render in a fixed-width
+  // chat font) so space-padded columns line up more evenly than a plain .length count would.
+  function visualWidth(str) {
+    let w = 0;
+    for (const ch of str) {
+      const code = ch.codePointAt(0);
+      const isWide =
+        (code >= 0x1100 && code <= 0x115F) || // Hangul Jamo
+        (code >= 0x2E80 && code <= 0xA4CF) || // CJK Radicals ~ Yi
+        (code >= 0xAC00 && code <= 0xD7A3) || // Hangul syllables
+        (code >= 0xF900 && code <= 0xFAFF) || // CJK compatibility
+        (code >= 0xFF00 && code <= 0xFF60) || // Fullwidth forms
+        (code >= 0xFFE0 && code <= 0xFFE6);
+      w += isWide ? 2 : 1;
+    }
+    return w;
+  }
+
+  // Centers str within targetWidth (splitting any leftover space evenly, extra space on the
+  // right when the padding is odd) so short and long names both sit in the middle of their column.
+  function padCenter(str, targetWidth) {
+    const totalPad = Math.max(0, targetWidth - visualWidth(str));
+    const left = Math.floor(totalPad / 2);
+    const right = totalPad - left;
+    return ' '.repeat(left) + str + ' '.repeat(right);
+  }
+
+  // The format requested for KakaoTalk share / clipboard copy: title on top, then team names
+  // in brackets laid out horizontally as a header row, with each team's players listed
+  // underneath, centered under their team's header (a plain-text "table" - chat apps don't
+  // support real tables, so alignment is done with padded spaces sized to each name's visual width).
+  function buildKakaoShareMessage(teams) {
+    const GAP = 2;
+    const headers = teams.map(t => '[' + t.name + ']');
+    const columns = teams.map(t =>
+      t.players.slice().sort((a, b) => nameCollator.compare(a.name, b.name)).map(p => p.name)
+    );
+    const maxRows = Math.max(0, ...columns.map(c => c.length));
+    const colWidths = teams.map((t, i) => Math.max(visualWidth(headers[i]), ...columns[i].map(visualWidth), 0) + GAP);
+
+    const lines = [SHARE_TITLE, ''];
+    lines.push(headers.map((h, i) => padCenter(h, colWidths[i])).join('').trimEnd());
+    for (let r = 0; r < maxRows; r++) {
+      // Player-name rows get one extra leading space for the 2nd team's column only - tuned
+      // by hand against how this actually renders in KakaoTalk. The 3rd team's column was
+      // nudged back to no extra offset (it had drifted one space too far right).
+      lines.push(teams.map((t, i) => (i === 1 ? ' ' : '') + padCenter(columns[i][r] || '', colWidths[i])).join('').trimEnd());
+    }
+    return lines.join('\n');
+  }
+
+  // The Clipboard API needs a "secure context" (https:// or localhost). This file is opened
+  // as a local file (file://), so most mobile browsers block navigator.clipboard there even
+  // though some desktop browsers are lenient about it - hence "works on PC, fails on phone".
+  function copyTextToClipboard(text) {
+    if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    return execCommandCopy(text);
+  }
+
+  function execCommandCopy(text) {
+    return new Promise((resolve, reject) => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      // iOS Safari won't copy an off-screen/zero-size field reliably, so keep it in-flow
+      // but visually invisible, and use setSelectionRange (not .select()) for iOS support.
+      ta.style.position = 'fixed';
+      ta.style.top = '0';
+      ta.style.left = '0';
+      ta.style.width = '1px';
+      ta.style.height = '1px';
+      ta.style.padding = '0';
+      ta.style.border = 'none';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.setSelectionRange(0, text.length);
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { /* not supported */ }
+      document.body.removeChild(ta);
+      ok ? resolve() : reject(new Error('복사 실패'));
+    });
+  }
+
+  // Last-resort fallback when both the Clipboard API and execCommand are blocked
+  // (common on mobile browsers over file://): show the text pre-selected so the
+  // person can copy it manually with a long-press / native "복사" menu.
+  function showManualCopyModal(text) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;';
+    const box = document.createElement('div');
+    box.style.cssText = 'background:var(--surface-1);border-radius:14px;padding:18px;max-width:420px;width:100%;box-shadow:0 10px 30px rgba(0,0,0,0.3);';
+    const title = document.createElement('div');
+    title.textContent = '자동 복사가 지원되지 않는 환경입니다. 아래 텍스트를 길게 눌러 직접 복사해주세요.';
+    title.style.cssText = 'font-size:13px;color:var(--text-secondary);margin-bottom:10px;';
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.readOnly = true;
+    ta.style.cssText = 'width:100%;height:220px;font-size:13px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface-page);color:var(--text-primary);resize:vertical;';
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '닫기';
+    closeBtn.className = 'btn-secondary';
+    closeBtn.style.cssText = 'margin-top:12px;';
+    closeBtn.addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    box.appendChild(title);
+    box.appendChild(ta);
+    box.appendChild(closeBtn);
+    overlay.appendChild(box);
+    (document.querySelector('.viz-root') || document.body).appendChild(overlay);
+    ta.focus();
+    ta.setSelectionRange(0, text.length);
+  }
+
+  $('copyPublicBtn').addEventListener('click', () => {
+    if (!lastTeams) { alert('먼저 팀 나누기를 실행해주세요.'); return; }
+    const text = buildKakaoShareMessage(lastTeams);
+    copyTextToClipboard(text)
+      .then(() => alert('공지용 결과가 클립보드에 복사되었습니다.'))
+      .catch(() => showManualCopyModal(text));
+  });
+
+  // "카카오톡으로 공유": there's no server here to register a Kakao app/domain for the
+  // official Kakao Share SDK, so this uses the device's native share sheet (Web Share API) -
+  // KakaoTalk shows up there as one of the share targets on phones that have it installed.
+  // Where the share sheet isn't available (most desktop browsers), fall back to copying
+  // the text so it can be pasted into a KakaoTalk chat directly.
+  $('shareKakaoBtn').addEventListener('click', () => {
+    if (!lastTeams) { alert('먼저 팀 나누기를 실행해주세요.'); return; }
+    // The title + blank line is baked directly into the message text (see buildKakaoShareMessage).
+    // Deliberately NOT also passing a separate `title` field to navigator.share() - KakaoTalk
+    // (and some other share targets) render that field on top of the text, which duplicated
+    // the title. Text-only avoids the repeat while still showing the title everywhere.
+    const text = buildKakaoShareMessage(lastTeams);
+
+    if (navigator.share) {
+      navigator.share({ text: text }).catch(err => {
+        if (err && err.name === 'AbortError') return; // user closed the share sheet - not an error
+        copyTextToClipboard(text)
+          .then(() => alert('공유 시트를 열 수 없어 대신 텍스트를 클립보드에 복사했습니다. 카카오톡 채팅방에 붙여넣어 주세요.'))
+          .catch(() => showManualCopyModal(text));
+      });
+    } else {
+      copyTextToClipboard(text)
+        .then(() => alert('이 환경은 공유 시트를 지원하지 않아 텍스트를 클립보드에 복사했습니다. 카카오톡 채팅방에 붙여넣어 공유해주세요.'))
+        .catch(() => showManualCopyModal(text));
+    }
+  });
+
+  $('exportPublicTxtBtn').addEventListener('click', () => {
+    if (!lastTeams) { alert('먼저 팀 나누기를 실행해주세요.'); return; }
+    downloadFile(buildShareMessage(lastTeams), 'team_announcement.txt', 'text/plain;charset=utf-8;');
+  });
+
+  $('exportPublicImgBtn').addEventListener('click', () => {
+    if (!lastTeams) { alert('먼저 팀 나누기를 실행해주세요.'); return; }
+    if (typeof html2canvas === 'undefined') {
+      alert('이미지 저장 기능을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 페이지를 새로고침해서 다시 시도해주세요.');
+      return;
+    }
+    const target = $('publicCaptureArea');
+    const btn = $('exportPublicImgBtn');
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '이미지 생성 중...';
+    const bg = getComputedStyle(document.querySelector('.viz-root')).getPropertyValue('--surface-1').trim() || '#ffffff';
+    html2canvas(target, { backgroundColor: bg, scale: 2, useCORS: true })
+      .then(canvas => {
+        canvas.toBlob(blob => {
+          if (!blob) throw new Error('이미지 생성 실패');
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'team_announcement.png';
+          a.click();
+          URL.revokeObjectURL(url);
+        }, 'image/png');
+      })
+      .catch(() => {
+        alert('이미지를 만드는 중 문제가 발생했습니다. 다시 시도해주세요.');
+      })
+      .finally(() => {
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+      });
+  });
+
+  function recomputeTeamAggregates(team) {
+    team.totalScore = 0;
+    team.totalAbility = 0;
+    team.totalHeight = 0;
+    team.positionCounts = {};
+    team.players.forEach(p => {
+      team.totalScore += p.score;
+      team.totalAbility += p.ability;
+      team.totalHeight += p.height;
+      team.positionCounts[p.position] = (team.positionCounts[p.position] || 0) + 1;
+    });
+  }
+
+  function movePlayerToTeam(playerId, toIdx) {
+    if (!lastTeams) return;
+    const fromIdx = lastTeams.findIndex(t => t.players.some(p => p.id === playerId));
+    if (fromIdx === -1 || fromIdx === toIdx) return;
+    const fromTeam = lastTeams[fromIdx];
+    const playerPos = fromTeam.players.findIndex(p => p.id === playerId);
+    const [player] = fromTeam.players.splice(playerPos, 1);
+    lastTeams[toIdx].players.push(player);
+    recomputeTeamAggregates(fromTeam);
+    recomputeTeamAggregates(lastTeams[toIdx]);
+    renderResults(lastTeams);
+  }
+
+  if (!storageAvailable && $('autosaveStatus')) {
+    $('autosaveStatus').textContent = '이 환경에서는 자동 저장을 사용할 수 없어, 새로고침하면 명단이 사라집니다.';
+  }
+  loadFromStorage();
+  renderPlayerTable();
+})();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</body>
+</html>
