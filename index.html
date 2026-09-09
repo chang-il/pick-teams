@@ -188,6 +188,14 @@
   .team-move-select { flex-shrink:0; width:auto; max-width:90px; padding:4px 6px; font-size:11.5px; }
   .pos-tags { display:flex; gap:6px; flex-wrap:wrap; }
 
+  /* 트레이드(선수 맞교환) 모드 */
+  .trade-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px; padding:10px 12px; border:1px dashed var(--border); border-radius:10px; background:var(--surface-page); }
+  .trade-bar button { padding:7px 12px; font-size:12.5px; }
+  .team-player-list li.trade-selectable { cursor:pointer; padding:6px; margin:0 -6px; border-radius:8px; }
+  .team-player-list li.trade-selectable:hover { background: color-mix(in srgb, var(--series-1) 10%, transparent); }
+  .team-player-list li.trade-selected { background: color-mix(in srgb, var(--series-1) 18%, transparent); outline:2px solid var(--series-1); }
+  .trade-mark { flex-shrink:0; font-size:11px; font-weight:700; color:var(--series-1); min-width:38px; text-align:right; }
+
   .empty-state { text-align:center; padding: 30px 10px; color: var(--text-muted); font-size: 13.5px; }
   .footer-note { font-size:11.5px; color: var(--text-muted); margin-top: 26px; text-align:center; line-height:1.6; }
 
@@ -312,13 +320,18 @@
   <!-- 3. 결과 -->
   <div class="card" id="resultCard" style="display:none;">
     <h2><span class="num">3</span>팀 구성 결과</h2>
-    <p class="hint" style="margin-top:-8px;">개인별 능력치 점수는 표시되지 않습니다. 선수 이름 옆 드롭다운으로 원하는 팀으로 직접 옮길 수 있습니다.</p>
+    <p class="hint" style="margin-top:-8px;">개인별 능력치 점수는 표시되지 않습니다. 선수 이름 옆 드롭다운으로 원하는 팀으로 옮기거나(인원수 변동), 아래 "트레이드"로 두 선수를 맞바꿀 수 있습니다(인원수 유지). 명단에서 능력치·신장·포지션을 수정하면 이 결과의 평균과 총점도 자동으로 다시 계산됩니다.</p>
 
     <div class="legend" id="posLegend"></div>
 
     <div class="balance-chart">
       <div class="bar-label" style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">팀별 종합 점수 (능력치·신장 가중 합산)</div>
       <div id="balanceChart"></div>
+    </div>
+
+    <div class="trade-bar">
+      <button class="btn-secondary" id="tradeToggleBtn">🔄 트레이드</button>
+      <span class="hint" id="tradeStatus" style="margin:0;"></span>
     </div>
 
     <div class="teams-grid" id="teamsGrid"></div>
@@ -361,6 +374,11 @@
   let idCounter = 1;
   let lastTeams = null;
   let editingId = null;
+  let lastSplitWeightPct = 60; // 마지막 팀 나누기에 쓰인 능력치 가중치(명단 수정 후 점수 재계산에 사용)
+  // 트레이드 모드: on일 때 결과의 선수 이름을 눌러 서로 다른 두 팀의 선수를 맞바꾼다.
+  let tradeMode = false;
+  let tradeSelection = null; // 첫 번째로 고른 선수 id
+  let tradeNote = '';        // 직전 교환 결과 안내 문구
 
   const $ = (id) => document.getElementById(id);
 
@@ -498,6 +516,7 @@
     $('attendanceBadge').textContent = '참석 ' + attendingCount + ' / ' + players.length + '명';
     updateToggleTableBtnLabel();
     saveToStorage();
+    refreshTeamsFromRoster();
 
     body.querySelectorAll('input[data-toggle]').forEach(cb => {
       cb.addEventListener('change', () => {
@@ -813,6 +832,7 @@
     const considerPosition = $('considerPosition').checked;
     const randomize = $('randomize').checked;
 
+    lastSplitWeightPct = abilityWeightPct; // 이후 명단 수정 시 같은 가중치로 점수를 다시 계산하기 위해 보관
     lastTeams = splitTeams(attendingPlayers, teamCount, abilityWeightPct, considerPosition, randomize);
     renderResults(lastTeams);
   });
@@ -848,13 +868,22 @@
       const playerRows = t.players
         .slice()
         .sort((a, b) => nameCollator.compare(a.name, b.name))
-        .map(p =>
-          '<li>' +
+        .map(p => {
+          const selected = tradeMode && tradeSelection === p.id;
+          // In trade mode the row itself becomes the click target and the move-dropdown is
+          // swapped out for a selection marker, so the two interactions can't fight each other.
+          const liAttrs = tradeMode
+            ? ' class="trade-selectable' + (selected ? ' trade-selected' : '') + '" data-trade-id="' + p.id + '"'
+            : '';
+          const trailing = tradeMode
+            ? '<span class="trade-mark">' + (selected ? '선택됨' : '') + '</span>'
+            : '<select class="team-move-select" data-player-id="' + p.id + '" title="다른 팀으로 이동">' + teamOptions + '</select>';
+          return '<li' + liAttrs + '>' +
             '<span class="player-name">' + escapeHtml(p.name) + '</span>' +
             '<span class="player-meta"><span class="pos-dot" style="background:' + POS_COLOR[p.position] + '"></span>' + p.position + ' · ' + p.height + 'cm</span>' +
-            '<select class="team-move-select" data-player-id="' + p.id + '" title="다른 팀으로 이동">' + teamOptions + '</select>' +
-          '</li>'
-        ).join('');
+            trailing +
+          '</li>';
+        }).join('');
 
       return '<div class="team-card">' +
         '<div class="team-card-head">' +
@@ -875,6 +904,11 @@
         movePlayerToTeam(parseInt(sel.dataset.playerId, 10), parseInt(sel.value, 10));
       });
     });
+
+    $('teamsGrid').querySelectorAll('[data-trade-id]').forEach(li => {
+      li.addEventListener('click', () => handleTradeClick(parseInt(li.dataset.tradeId, 10)));
+    });
+    updateTradeUI();
 
     $('teamsGrid').querySelectorAll('.team-name-input').forEach(input => {
       input.addEventListener('change', () => renameTeam(input, teams));
@@ -1148,6 +1182,55 @@
       });
   });
 
+  // ---------- 명단 수정 → 결과 반영 ----------
+  // 팀 나누기 결과는 선수 객체의 "사본"을 들고 있으므로, 명단에서 능력치·신장 등을 고치면
+  // 결과 쪽 사본도 같은 id를 기준으로 따라 갱신해줘야 평균·총점이 실제 값과 어긋나지 않는다.
+  // 팀 배정 자체는 건드리지 않으므로 수동으로 옮기거나 트레이드한 구성은 그대로 유지된다.
+  function recomputeAllScores() {
+    const all = [];
+    lastTeams.forEach(t => t.players.forEach(p => all.push(p)));
+    if (!all.length) return;
+    const heights = all.map(p => p.height);
+    const minH = Math.min(...heights), maxH = Math.max(...heights);
+    const range = maxH - minH;
+    const abilityWeight = lastSplitWeightPct / 100;
+    const heightWeight = 1 - abilityWeight;
+    all.forEach(p => {
+      const normAbility = p.ability / 10;
+      const normHeight = range > 0 ? (p.height - minH) / range : 0.5;
+      p.score = (abilityWeight * normAbility + heightWeight * normHeight) * 100;
+    });
+  }
+
+  function refreshTeamsFromRoster() {
+    if (!lastTeams) return;
+    let changed = false;
+
+    lastTeams.forEach(t => {
+      const kept = [];
+      t.players.forEach(tp => {
+        const src = players.find(p => p.id === tp.id);
+        if (!src) { changed = true; return; } // 명단에서 삭제된 선수는 결과에서도 제외
+        if (tp.name !== src.name || tp.ability !== src.ability ||
+            tp.height !== src.height || tp.position !== src.position) {
+          changed = true;
+          tp.name = src.name;
+          tp.ability = src.ability;
+          tp.height = src.height;
+          tp.position = src.position;
+        }
+        kept.push(tp);
+      });
+      t.players = kept;
+    });
+
+    if (!changed) return; // 바뀐 게 없으면 다시 그리지 않는다(트레이드 선택 상태 보존)
+    if (tradeSelection !== null && !findPlayerInTeams(tradeSelection)) tradeSelection = null;
+    recomputeAllScores();
+    lastTeams.forEach(recomputeTeamAggregates);
+    renderResults(lastTeams);
+  }
+
   function recomputeTeamAggregates(team) {
     team.totalScore = 0;
     team.totalAbility = 0;
@@ -1173,6 +1256,101 @@
     recomputeTeamAggregates(lastTeams[toIdx]);
     renderResults(lastTeams);
   }
+
+  // ---------- 트레이드(맞교환) ----------
+  // 이동(movePlayerToTeam)은 한 팀 인원이 늘고 다른 팀이 줄지만,
+  // 트레이드는 두 선수를 같은 자리에서 맞바꾸므로 양 팀 인원수가 그대로 유지된다.
+  function findTeamIdxOfPlayer(playerId) {
+    return lastTeams ? lastTeams.findIndex(t => t.players.some(p => p.id === playerId)) : -1;
+  }
+
+  function findPlayerInTeams(playerId) {
+    if (!lastTeams) return null;
+    for (const t of lastTeams) {
+      const p = t.players.find(pl => pl.id === playerId);
+      if (p) return p;
+    }
+    return null;
+  }
+
+  function handleTradeClick(playerId) {
+    if (!tradeMode || !lastTeams) return;
+
+    // 아무도 안 골랐으면 첫 번째 선수로 선택
+    if (tradeSelection === null) {
+      tradeSelection = playerId;
+      tradeNote = '';
+      renderResults(lastTeams);
+      return;
+    }
+    // 같은 선수를 다시 누르면 선택 해제
+    if (tradeSelection === playerId) {
+      tradeSelection = null;
+      renderResults(lastTeams);
+      return;
+    }
+    const idxA = findTeamIdxOfPlayer(tradeSelection);
+    const idxB = findTeamIdxOfPlayer(playerId);
+    if (idxA === -1 || idxB === -1) {
+      tradeSelection = null;
+      renderResults(lastTeams);
+      return;
+    }
+    // 같은 팀 선수를 누르면 교환 대신 선택 대상만 바꿔준다
+    if (idxA === idxB) {
+      tradeSelection = playerId;
+      tradeNote = '';
+      renderResults(lastTeams);
+      return;
+    }
+    swapPlayers(tradeSelection, playerId);
+  }
+
+  function swapPlayers(idA, idB) {
+    const teamA = lastTeams.find(t => t.players.some(p => p.id === idA));
+    const teamB = lastTeams.find(t => t.players.some(p => p.id === idB));
+    if (!teamA || !teamB || teamA === teamB) return;
+    const ia = teamA.players.findIndex(p => p.id === idA);
+    const ib = teamB.players.findIndex(p => p.id === idB);
+    const pa = teamA.players[ia];
+    const pb = teamB.players[ib];
+    teamA.players[ia] = pb;
+    teamB.players[ib] = pa;
+    recomputeTeamAggregates(teamA);
+    recomputeTeamAggregates(teamB);
+    tradeNote = '✅ ' + pa.name + '(' + teamA.name + ') ↔ ' + pb.name + '(' + teamB.name + ') 교환 완료.';
+    tradeSelection = null;
+    renderResults(lastTeams);
+  }
+
+  function updateTradeUI() {
+    const btn = $('tradeToggleBtn');
+    const status = $('tradeStatus');
+    if (!btn || !status) return;
+
+    btn.textContent = tradeMode ? '✕ 트레이드 종료' : '🔄 트레이드';
+    btn.className = tradeMode ? 'btn-primary' : 'btn-secondary';
+
+    if (!tradeMode) {
+      status.textContent = '두 팀의 선수를 맞바꾸려면 "트레이드"를 누르세요. 인원수는 그대로 유지됩니다.';
+      return;
+    }
+    if (tradeSelection === null) {
+      status.textContent = (tradeNote ? tradeNote + ' ' : '') + '교환할 첫 번째 선수를 선택하세요.';
+    } else {
+      const p = findPlayerInTeams(tradeSelection);
+      status.textContent = '[' + (p ? p.name : '') + '] 선택됨 — 다른 팀에서 교환할 상대를 선택하세요. (같은 선수를 다시 누르면 선택 해제)';
+    }
+  }
+
+  $('tradeToggleBtn').addEventListener('click', () => {
+    tradeMode = !tradeMode;
+    tradeSelection = null;
+    tradeNote = '';
+    if (lastTeams) renderResults(lastTeams);
+    else updateTradeUI();
+  });
+  updateTradeUI();
 
   if (!storageAvailable && $('autosaveStatus')) {
     $('autosaveStatus').textContent = '이 환경에서는 자동 저장을 사용할 수 없어, 새로고침하면 명단이 사라집니다.';
