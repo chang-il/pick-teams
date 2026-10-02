@@ -79,6 +79,10 @@
     background: var(--surface-page);
     color: var(--text-primary);
   }
+  /* The theme variables are declared on .viz-root, so text that inherits its
+     colour (player names, for one) must take it from here — otherwise it falls
+     back to body's light-theme value and goes black-on-black in dark mode. */
+  .viz-root { color: var(--text-primary); background: var(--surface-page); }
   .app { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
   .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom: 22px; }
   h1 { font-size: 22px; margin: 0 0 4px; }
@@ -134,6 +138,90 @@
   .toolbar { display:flex; gap:10px; margin-top: 12px; flex-wrap: wrap; }
   .file-input { display:none; }
 
+  /* 명단 관리 시트 */
+  .toggle-actions { display:flex; gap:8px; }
+  .toggle-actions .btn-secondary { padding:6px 11px; font-size:12.5px; white-space:nowrap; }
+  .sheet-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 900;
+    display: none; align-items: center; justify-content: center; padding: 20px;
+  }
+  .sheet-overlay.open { display: flex; }
+  .sheet {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 16px;
+    width: 100%; max-width: 480px; max-height: 86vh; display: flex; flex-direction: column;
+    box-shadow: 0 18px 48px rgba(0,0,0,0.35); overflow: hidden;
+  }
+  .sheet-head {
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 16px 18px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .sheet-head h3 { margin:0; font-size: 15px; }
+  .sheet-close {
+    background: transparent; border: none; color: var(--text-muted);
+    font-size: 15px; padding: 4px 8px; line-height: 1;
+  }
+  .sheet-close:hover { color: var(--text-primary); }
+  .sheet-body { padding: 16px 18px 20px; overflow-y: auto; }
+  .menu-group + .menu-group { margin-top: 20px; }
+  .menu-label {
+    font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 8px;
+  }
+  .menu-grid { display: flex; flex-direction: column; gap: 8px; }
+  .menu-item {
+    display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+    background: var(--surface-page); border: 1px solid var(--border); border-radius: 10px;
+    padding: 11px 13px; font-weight: 500;
+  }
+  .menu-item:hover { border-color: var(--series-1); }
+  .menu-item .mi-ico { font-size: 17px; line-height: 1; flex-shrink: 0; }
+  .menu-item .mi-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .menu-item .mi-txt b { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+  .menu-item .mi-txt em { font-size: 11.5px; font-style: normal; color: var(--text-muted); }
+  .menu-item.danger .mi-txt b { color: var(--status-critical); }
+  .menu-item.danger:hover { border-color: var(--status-critical); }
+  .menu-note { font-size: 11.5px; color: var(--text-muted); line-height: 1.6; margin: 9px 2px 0; }
+
+  /* 팀 색상 */
+  .team-color-row { display:flex; gap:10px; flex-wrap:wrap; }
+  .team-color-chip {
+    display:flex; align-items:center; gap:7px; padding: 6px 11px 6px 8px;
+    background: var(--surface-page); border:1px solid var(--border); border-radius: 999px;
+    font-size: 12.5px; font-weight: 600; color: var(--text-secondary);
+  }
+  .team-color-chip:hover { border-color: var(--series-1); color: var(--text-primary); }
+  .team-color-chip .chip-dot {
+    width: 15px; height: 15px; border-radius: 5px; flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(128,128,128,.45);
+  }
+  .swatch-grid { display:grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  .swatch {
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+    background: transparent; border: none; padding: 0;
+  }
+  .swatch-chip {
+    width: 100%; aspect-ratio: 1; border-radius: 10px;
+    box-shadow: inset 0 0 0 1px rgba(128,128,128,.45);
+    display:flex; align-items:center; justify-content:center;
+    font-size: 15px; font-weight: 800; line-height: 1;
+  }
+  .swatch.sel .swatch-chip { outline: 2px solid var(--series-1); outline-offset: 2px; }
+  .swatch-name { font-size: 10.5px; color: var(--text-muted); }
+  .swatch.sel .swatch-name { color: var(--text-primary); font-weight: 700; }
+  .custom-color-row {
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    margin-top: 16px; padding: 10px 12px; border:1px solid var(--border);
+    border-radius: 10px; font-size: 13px; color: var(--text-secondary);
+  }
+  .custom-color-row input[type=color] {
+    width: 54px; height: 32px; padding: 2px; border-radius: 7px; cursor: pointer;
+  }
+
+  @media (max-width: 560px) {
+    .sheet-overlay { align-items: flex-end; padding: 0; }
+    .sheet { max-width: none; border-radius: 16px 16px 0 0; max-height: 88vh; }
+  }
+
   .settings-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
   .weight-row { grid-column: 1 / -1; }
   .weight-label-row { display:flex; justify-content:space-between; font-size:12px; color:var(--text-secondary); margin-bottom:6px; }
@@ -162,7 +250,7 @@
   .bar-row { display:grid; grid-template-columns: 90px 1fr 54px; align-items:center; gap:10px; margin-bottom: 10px; }
   .bar-row .bar-label { font-size: 13px; color: var(--text-secondary); text-align:right; }
   .bar-track { position:relative; height: 20px; background: var(--surface-page); border-radius: 4px; overflow:hidden; }
-  .bar-fill { height: 100%; background: var(--series-1); border-radius: 4px 0 0 4px; }
+  .bar-fill { height: 100%; background: var(--series-1); border-radius: 4px 0 0 4px; box-shadow: inset 0 0 0 1px rgba(128,128,128,.4); }
   .bar-value { font-size: 12.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 
   .teams-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
@@ -177,7 +265,12 @@
   .team-name-input:hover { border-color: var(--border); }
   .team-name-input:focus { outline: none; border-color: var(--series-1); background: var(--surface-1); }
   .team-count-suffix { color: var(--text-secondary); font-weight: 400; flex-shrink: 0; }
-  .team-dot { width:10px; height:10px; border-radius: 3px; }
+  /* The club's white bib is nearly the card colour, so every colour chip carries
+     a faint ring that reads on both light and dark backgrounds. */
+  .team-dot { width:11px; height:11px; border-radius: 3px; flex-shrink:0; box-shadow: inset 0 0 0 1px rgba(128,128,128,.5); }
+  .team-dot-btn { width:18px; height:18px; border-radius: 5px; padding: 0; border: none; cursor: pointer; }
+  .team-dot-btn:hover { outline: 2px solid var(--border); outline-offset: 2px; }
+  .team-dot-btn:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
   .team-stats { display:flex; gap:12px; font-size:12px; color: var(--text-secondary); margin-bottom:10px; }
   .team-stats b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
   .team-player-list { list-style:none; padding:0; margin:0 0 10px; }
@@ -202,6 +295,12 @@
   @media (max-width: 720px) {
     .form-row { grid-template-columns: 1fr 1fr; }
     .settings-grid { grid-template-columns: 1fr; }
+    /* Narrow screens squeezed the roster columns until names broke one letter
+       per line; let the table keep its natural width and scroll sideways. */
+    #playerTableWrapper { overflow-x: auto; }
+    #playerTableWrapper table { min-width: 460px; }
+    #playerTableBody td:nth-child(2) { white-space: nowrap; }
+    .pos-badge { white-space: nowrap; }
   }
 </style>
 </head>
@@ -251,7 +350,10 @@
 
     <div class="table-toggle-row">
       <span class="hint" style="margin:0;">선수 목록</span>
-      <button class="btn-secondary" id="toggleTableBtn" style="padding:5px 10px;font-size:12px;">목록 펼치기</button>
+      <div class="toggle-actions">
+        <button class="btn-secondary" id="toggleTableBtn">목록 펼치기</button>
+        <button class="btn-secondary" id="rosterMenuBtn">⚙️ 명단 관리</button>
+      </div>
     </div>
 
     <div id="playerTableWrapper" class="collapsed">
@@ -265,20 +367,7 @@
       </table>
     </div>
 
-    <div class="toolbar">
-      <button class="btn-secondary" id="selectAllBtn">전체 참석</button>
-      <button class="btn-secondary" id="selectNoneBtn">전체 불참</button>
-      <button class="btn-secondary" id="exportCsvBtn">CSV로 저장</button>
-      <button class="btn-secondary" id="exportTxtBtn">TXT로 저장</button>
-      <button class="btn-secondary" id="importCsvBtn">CSV 불러오기(업데이트)</button>
-      <button class="btn-secondary" id="importTxtBtn">메모장(TXT) 불러오기(업데이트)</button>
-      <button class="btn-secondary" id="sampleBtn">예시 명단 채우기</button>
-      <button class="btn-secondary" id="clearBtn">전체 삭제</button>
-      <input type="file" id="csvFileInput" class="file-input" accept=".csv,text/csv">
-      <input type="file" id="txtFileInput" class="file-input" accept=".txt,text/plain">
-    </div>
-    <p class="hint">"참석" 체크박스로 선택된 선수만 팀 나누기에 포함됩니다. 명단은 항상 이름 가나다순으로 정렬되어 표시됩니다. CSV·TXT 불러오기는 이름이 명단에 하나만 있을 때만 능력치·신장·포지션을 업데이트하고, 그 외(새 이름이거나 동명이인이 이미 있는 경우)는 새 선수로 추가합니다 — 동명이인은 삭제·병합되지 않고 모두 유지됩니다. (열 순서: 이름, 능력치, 신장, 포지션 / TXT는 쉼표 또는 탭으로 구분된 메모장 파일을 지원합니다)</p>
-    <p class="hint">표의 "수정" 버튼으로 개별 선수 정보를 바로 고칠 수 있습니다. 명단은 이 브라우저에 자동 저장되어 <span id="autosaveStatus">다음에 다시 열어도 그대로 남아 있습니다.</span> 다른 기기·브라우저에서도 쓰려면 "CSV로 저장" 또는 "TXT로 저장"으로 내려받아 옮겨주세요.</p>
+    <p class="hint" style="margin-top:12px;">"참석" 체크박스로 선택된 선수만 팀 나누기에 포함됩니다. 목록은 이름 가나다순으로 정렬되며, 표의 "수정" 버튼으로 개별 정보를 바로 고칠 수 있습니다. 참석 일괄 설정·파일 저장·불러오기는 <b>⚙️ 명단 관리</b>에 모아두었습니다.</p>
   </div>
 
   <!-- 2. 팀 나누기 설정 -->
@@ -300,6 +389,11 @@
       <div class="field checkbox-row" style="margin-top:20px;">
         <input type="checkbox" id="randomize">
         <label for="randomize">동점자는 무작위로 섞기</label>
+      </div>
+
+      <div class="field weight-row">
+        <label>팀 색상 <span class="hint" style="font-weight:400;">(색을 눌러 변경)</span></label>
+        <div class="team-color-row" id="teamColorRow"></div>
       </div>
 
       <div class="field weight-row">
@@ -360,6 +454,73 @@
   <div class="footer-note">능력치는 1~10점 자기평가/운영진 평가 기준, 종합 점수는 능력치와 신장을 각각 0~100으로 정규화한 뒤 위 가중치로 합산한 값입니다.</div>
 
 </div>
+
+<!-- 명단 관리 시트 -->
+<div class="sheet-overlay" id="rosterMenu" aria-hidden="true">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="rosterMenuTitle">
+    <div class="sheet-head">
+      <h3 id="rosterMenuTitle">명단 관리</h3>
+      <button class="sheet-close" id="rosterMenuClose" aria-label="닫기">✕</button>
+    </div>
+    <div class="sheet-body">
+
+      <div class="menu-group">
+        <div class="menu-label">참석 일괄 설정</div>
+        <div class="menu-grid">
+          <button class="menu-item" id="selectAllBtn"><span class="mi-ico">✅</span><span class="mi-txt"><b>전체 참석</b><em>모든 선수를 참석으로</em></span></button>
+          <button class="menu-item" id="selectNoneBtn"><span class="mi-ico">⬜</span><span class="mi-txt"><b>전체 불참</b><em>모두 해제하고 직접 선택</em></span></button>
+        </div>
+      </div>
+
+      <div class="menu-group">
+        <div class="menu-label">명단 채우기</div>
+        <div class="menu-grid">
+          <button class="menu-item" id="importCsvBtn"><span class="mi-ico">📄</span><span class="mi-txt"><b>CSV 불러오기</b><em>엑셀에서 내보낸 파일</em></span></button>
+          <button class="menu-item" id="importTxtBtn"><span class="mi-ico">📝</span><span class="mi-txt"><b>메모장(TXT) 불러오기</b><em>쉼표 또는 탭으로 구분</em></span></button>
+          <button class="menu-item" id="sampleBtn"><span class="mi-ico">🎲</span><span class="mi-txt"><b>예시 명단 채우기</b><em>기능을 먼저 체험해보기</em></span></button>
+        </div>
+        <p class="menu-note">불러오기는 같은 이름이 명단에 하나만 있을 때 그 선수의 능력치·신장·포지션을 업데이트하고, 새 이름이거나 동명이인이 이미 있으면 새 선수로 추가합니다. 동명이인은 삭제·병합되지 않고 모두 유지됩니다. (열 순서: 이름, 능력치, 신장, 포지션)</p>
+      </div>
+
+      <div class="menu-group">
+        <div class="menu-label">내보내기 · 백업</div>
+        <div class="menu-grid">
+          <button class="menu-item" id="exportCsvBtn"><span class="mi-ico">💾</span><span class="mi-txt"><b>CSV로 저장</b><em>엑셀에서 열기 좋음</em></span></button>
+          <button class="menu-item" id="exportTxtBtn"><span class="mi-ico">💾</span><span class="mi-txt"><b>TXT로 저장</b><em>메모장에서 열기 좋음</em></span></button>
+        </div>
+        <p class="menu-note">명단은 이 브라우저에 자동 저장되어 <span id="autosaveStatus">다음에 다시 열어도 그대로 남아 있습니다.</span> 다른 기기·브라우저에서도 쓰려면 파일로 내려받아 옮겨주세요.</p>
+      </div>
+
+      <div class="menu-group">
+        <div class="menu-label">위험</div>
+        <div class="menu-grid">
+          <button class="menu-item danger" id="clearBtn"><span class="mi-ico">🗑️</span><span class="mi-txt"><b>명단 전체 삭제</b><em>되돌릴 수 없습니다</em></span></button>
+        </div>
+      </div>
+
+      <input type="file" id="csvFileInput" class="file-input" accept=".csv,text/csv">
+      <input type="file" id="txtFileInput" class="file-input" accept=".txt,text/plain">
+    </div>
+  </div>
+</div>
+
+<!-- 팀 색상 선택 시트 -->
+<div class="sheet-overlay" id="colorSheet" aria-hidden="true">
+  <div class="sheet" style="max-width:380px;" role="dialog" aria-modal="true" aria-labelledby="colorSheetTitle">
+    <div class="sheet-head">
+      <h3 id="colorSheetTitle">팀 색상</h3>
+      <button class="sheet-close" id="colorSheetClose" aria-label="닫기">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="swatch-grid" id="swatchGrid"></div>
+      <div class="custom-color-row">
+        <span>직접 고르기</span>
+        <input type="color" id="customColorInput" aria-label="색상 직접 선택">
+      </div>
+      <button class="btn-secondary" id="resetColorBtn" style="width:100%; margin-top:12px;">기본 색으로 되돌리기</button>
+    </div>
+  </div>
+</div>
 </div>
 
 <script>
@@ -369,6 +530,21 @@
   const DEFAULT_TEAM_NAMES = ['네이비', '옐로우', '화이트'];
   function defaultTeamName(i) { return DEFAULT_TEAM_NAMES[i] || ('팀 ' + (i + 1)); }
   const POS_COLOR = { '가드': SERIES[0], '포워드': SERIES[1], '센터': SERIES[2], '무관': SERIES[3] };
+
+  // ---------- Team colours ----------
+  // Teams 1~3 match the club's bibs: navy, yellow, white. The rest are only
+  // fallbacks for larger splits, and every slot can be overridden by the user.
+  const DEFAULT_TEAM_COLORS = ['#1e3a8a', '#eab308', '#f1f3f7', '#dc2626', '#16a34a', '#7c3aed', '#f97316', '#0ea5e9'];
+  const COLOR_PRESETS = [
+    { name: '네이비', hex: '#1e3a8a' }, { name: '옐로우', hex: '#eab308' },
+    { name: '화이트', hex: '#f1f3f7' }, { name: '레드',   hex: '#dc2626' },
+    { name: '그린',   hex: '#16a34a' }, { name: '퍼플',   hex: '#7c3aed' },
+    { name: '오렌지', hex: '#f97316' }, { name: '스카이', hex: '#0ea5e9' },
+    { name: '블랙',   hex: '#334155' }, { name: '핑크',   hex: '#ec4899' }
+  ];
+  const TEAM_COLOR_KEY = 'basketballTeamSplit.teamColors.v1';
+  let teamColors = DEFAULT_TEAM_COLORS.slice();
+  function teamColor(i) { return teamColors[i] || DEFAULT_TEAM_COLORS[i % DEFAULT_TEAM_COLORS.length]; }
 
   let players = [];
   let idCounter = 1;
@@ -398,6 +574,24 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(players.map(({ id, ...rest }) => rest)));
     } catch (e) { /* storage full or blocked - ignore, in-memory state still works */ }
+  }
+
+  function saveTeamColors() {
+    if (!storageAvailable) return;
+    try { localStorage.setItem(TEAM_COLOR_KEY, JSON.stringify(teamColors)); } catch (e) { /* ignore */ }
+  }
+  function loadTeamColors() {
+    if (!storageAvailable) return;
+    try {
+      const raw = localStorage.getItem(TEAM_COLOR_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (!Array.isArray(data)) return;
+      DEFAULT_TEAM_COLORS.forEach((def, i) => {
+        const v = data[i];
+        teamColors[i] = (typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v)) ? v : def;
+      });
+    } catch (e) { /* corrupted data - keep defaults */ }
   }
 
   function loadFromStorage() {
@@ -441,6 +635,108 @@
     updateToggleTableBtnLabel();
   });
 
+  // ---------- Roster management sheet ----------
+  // The roster toolbar used to sit on the main screen as eight competing buttons.
+  // They now live here, grouped by intent, so the first screen shows only the
+  // add form, the list toggle, and this one entry point.
+  const rosterMenu = $('rosterMenu');
+  function openRosterMenu() {
+    rosterMenu.classList.add('open');
+    rosterMenu.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeRosterMenu() {
+    rosterMenu.classList.remove('open');
+    rosterMenu.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+  $('rosterMenuBtn').addEventListener('click', openRosterMenu);
+  $('rosterMenuClose').addEventListener('click', closeRosterMenu);
+  rosterMenu.addEventListener('click', (e) => { if (e.target === rosterMenu) closeRosterMenu(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && rosterMenu.classList.contains('open')) closeRosterMenu();
+  });
+  // Each action's own handler is bound to the button itself, so this bubbling
+  // listener runs after it and simply dismisses the sheet.
+  rosterMenu.querySelectorAll('.menu-item').forEach((btn) => {
+    btn.addEventListener('click', () => closeRosterMenu());
+  });
+
+  // ---------- Team colour picker ----------
+  const colorSheet = $('colorSheet');
+  let colorTargetIdx = 0;
+
+  // White-ish swatches need a dark tick, dark ones a light tick.
+  function readableInk(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+    if (!m) return '#ffffff';
+    const v = parseInt(m[1], 16);
+    const r = (v >> 16) & 255, g = (v >> 8) & 255, b = v & 255;
+    return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? '#1b2430' : '#ffffff';
+  }
+
+  function renderSwatches() {
+    const current = (teamColor(colorTargetIdx) || '').toLowerCase();
+    $('swatchGrid').innerHTML = COLOR_PRESETS.map(p => {
+      const sel = p.hex.toLowerCase() === current;
+      return '<button type="button" class="swatch' + (sel ? ' sel' : '') + '" data-hex="' + p.hex + '" title="' + p.name + '">' +
+        '<span class="swatch-chip" style="background:' + p.hex + '; color:' + readableInk(p.hex) + '">' + (sel ? '✓' : '') + '</span>' +
+        '<span class="swatch-name">' + p.name + '</span>' +
+      '</button>';
+    }).join('');
+    $('swatchGrid').querySelectorAll('.swatch').forEach(sw => {
+      sw.addEventListener('click', () => setTeamColor(colorTargetIdx, sw.dataset.hex, true));
+    });
+    $('customColorInput').value = current || '#000000';
+  }
+
+  function openColorSheet(idx) {
+    colorTargetIdx = idx;
+    const name = (lastTeams && lastTeams[idx] && lastTeams[idx].name) || defaultTeamName(idx);
+    $('colorSheetTitle').textContent = name + ' 색상';
+    renderSwatches();
+    colorSheet.classList.add('open');
+    colorSheet.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeColorSheet() {
+    colorSheet.classList.remove('open');
+    colorSheet.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+  function setTeamColor(idx, hex, close) {
+    teamColors[idx] = hex;
+    saveTeamColors();
+    renderTeamColorRow();
+    if (lastTeams) renderResults(lastTeams);
+    if (close) closeColorSheet(); else renderSwatches();
+  }
+
+  $('colorSheetClose').addEventListener('click', closeColorSheet);
+  colorSheet.addEventListener('click', (e) => { if (e.target === colorSheet) closeColorSheet(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && colorSheet.classList.contains('open')) closeColorSheet();
+  });
+  $('customColorInput').addEventListener('input', (e) => setTeamColor(colorTargetIdx, e.target.value, false));
+  $('resetColorBtn').addEventListener('click', () => {
+    setTeamColor(colorTargetIdx, DEFAULT_TEAM_COLORS[colorTargetIdx % DEFAULT_TEAM_COLORS.length], true);
+  });
+
+  // Swatch row inside the settings card, so colours can be set before a split too.
+  function renderTeamColorRow() {
+    const count = Math.min(8, Math.max(2, parseInt($('teamCount').value, 10) || 2));
+    const names = (lastTeams && lastTeams.length === count) ? lastTeams.map(t => t.name) : null;
+    $('teamColorRow').innerHTML = Array.from({ length: count }, (_, i) =>
+      '<button type="button" class="team-color-chip" data-color-idx="' + i + '">' +
+        '<span class="chip-dot" style="background:' + teamColor(i) + '"></span>' +
+        escapeHtml(names ? names[i] : defaultTeamName(i)) +
+      '</button>'
+    ).join('');
+    $('teamColorRow').querySelectorAll('.team-color-chip').forEach(chip => {
+      chip.addEventListener('click', () => openColorSheet(parseInt(chip.dataset.colorIdx, 10)));
+    });
+  }
+
   // ---------- Team count stepper (explicit +/- buttons, since number-input spinners are
   // tiny or hidden entirely on many mobile browsers) ----------
   function adjustTeamCount(delta) {
@@ -453,6 +749,7 @@
     const val = parseInt($('teamCount').value, 10) || 2;
     $('teamCountDown').disabled = val <= 2;
     $('teamCountUp').disabled = val >= 8;
+    renderTeamColorRow();
   }
   $('teamCountDown').addEventListener('click', () => adjustTeamCount(-1));
   $('teamCountUp').addEventListener('click', () => adjustTeamCount(1));
@@ -790,7 +1087,7 @@
 
     const teams = Array.from({ length: teamCount }, (_, i) => ({
       name: defaultTeamName(i),
-      color: SERIES[i % SERIES.length],
+      color: teamColor(i),
       players: [],
       totalScore: 0,
       totalAbility: 0,
@@ -839,6 +1136,9 @@
 
   function renderResults(teams) {
     $('resultCard').style.display = 'block';
+    // Colours live outside the team objects so a change applies to an already
+    // computed split without re-running the balancer.
+    teams.forEach((t, i) => { t.color = teamColor(i); });
 
     // position legend
     const usedPositions = POSITIONS.filter(pos => teams.some(t => t.positionCounts[pos]));
@@ -888,7 +1188,7 @@
       return '<div class="team-card">' +
         '<div class="team-card-head">' +
           '<div class="team-name">' +
-            '<span class="team-dot" style="background:' + t.color + '"></span>' +
+            '<button type="button" class="team-dot team-dot-btn" data-color-idx="' + teamIdx + '" style="background:' + t.color + '" title="팀 색상 바꾸기" aria-label="' + escapeHtml(t.name) + ' 색상 바꾸기"></button>' +
             '<input type="text" class="team-name-input" data-team-idx="' + teamIdx + '" value="' + escapeHtml(t.name) + '" title="팀 이름 수정">' +
             '<span class="team-count-suffix">(' + t.players.length + '명)</span>' +
           '</div>' +
@@ -910,6 +1210,10 @@
     });
     updateTradeUI();
 
+    $('teamsGrid').querySelectorAll('.team-dot-btn').forEach(btn => {
+      btn.addEventListener('click', () => openColorSheet(parseInt(btn.dataset.colorIdx, 10)));
+    });
+
     $('teamsGrid').querySelectorAll('.team-name-input').forEach(input => {
       input.addEventListener('change', () => renameTeam(input, teams));
       input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
@@ -917,6 +1221,7 @@
       autosizeTeamNameInput(input);
     });
 
+    renderTeamColorRow();
     renderPublicResults(teams);
   }
 
@@ -1356,6 +1661,8 @@
     $('autosaveStatus').textContent = '이 환경에서는 자동 저장을 사용할 수 없어, 새로고침하면 명단이 사라집니다.';
   }
   loadFromStorage();
+  loadTeamColors();
+  renderTeamColorRow();
   renderPlayerTable();
 })();
 </script>
