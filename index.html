@@ -292,6 +292,26 @@
   .empty-state { text-align:center; padding: 30px 10px; color: var(--text-muted); font-size: 13.5px; }
   .footer-note { font-size:11.5px; color: var(--text-muted); margin-top: 26px; text-align:center; line-height:1.6; }
 
+  /* 설명(매뉴얼)은 기본으로 접어두고 ⓘ 아이콘으로만 펼친다 */
+  .help-toggle {
+    margin-left: auto; width: 22px; height: 22px; padding: 0; flex-shrink: 0;
+    border-radius: 50%; border: 1px solid var(--border); background: transparent;
+    color: var(--text-muted); font-size: 12px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .help-toggle:hover { color: var(--series-1); border-color: var(--series-1); }
+  .help-toggle[aria-expanded="true"] { background: var(--series-1); border-color: var(--series-1); color: #fff; }
+  /* 참석 배지가 이미 오른쪽으로 밀려 있으면 아이콘은 그 옆에 붙인다 */
+  .attendance-badge + .help-toggle { margin-left: 8px; }
+  .help-box {
+    margin: 0 0 14px; padding: 12px 14px;
+    border: 1px dashed var(--border); border-radius: 10px; background: var(--surface-page);
+    font-size: 12px; color: var(--text-secondary); line-height: 1.7;
+  }
+  .help-box[hidden] { display: none; }
+  .help-box p { margin: 0; }
+  .help-box p + p { margin-top: 8px; }
+
   @media (max-width: 720px) {
     .form-row { grid-template-columns: 1fr 1fr; }
     .settings-grid { grid-template-columns: 1fr; }
@@ -318,7 +338,11 @@
 
   <!-- 1. 선수 명단 -->
   <div class="card">
-    <h2><span class="num">1</span>선수 명단 <span class="attendance-badge" id="attendanceBadge">참석 0 / 0명</span></h2>
+    <h2><span class="num">1</span>선수 명단 <span class="attendance-badge" id="attendanceBadge">참석 0 / 0명</span><button type="button" class="help-toggle" data-help-for="help1" title="설명 보기">ⓘ</button></h2>
+    <div class="help-box" id="help1" hidden>
+      <p>"참석" 체크박스로 선택된 선수만 팀 나누기에 포함됩니다. 목록은 이름 가나다순으로 정렬되며, 표의 "수정" 버튼으로 개별 정보를 바로 고칠 수 있습니다.</p>
+      <p>참석 일괄 설정·파일 저장·불러오기는 <b>⚙️ 명단 관리</b>에 모아두었습니다.</p>
+    </div>
 
     <div class="form-row">
       <div class="field">
@@ -367,12 +391,15 @@
       </table>
     </div>
 
-    <p class="hint" style="margin-top:12px;">"참석" 체크박스로 선택된 선수만 팀 나누기에 포함됩니다. 목록은 이름 가나다순으로 정렬되며, 표의 "수정" 버튼으로 개별 정보를 바로 고칠 수 있습니다. 참석 일괄 설정·파일 저장·불러오기는 <b>⚙️ 명단 관리</b>에 모아두었습니다.</p>
   </div>
 
   <!-- 2. 팀 나누기 설정 -->
   <div class="card">
-    <h2><span class="num">2</span>팀 나누기 설정</h2>
+    <h2><span class="num">2</span>팀 나누기 설정<button type="button" class="help-toggle" data-help-for="help2" title="설명 보기">ⓘ</button></h2>
+    <div class="help-box" id="help2" hidden>
+      <p>능력치는 1~10점 자기평가/운영진 평가 기준이며, 종합 점수는 능력치와 신장을 각각 0~100으로 정규화한 뒤 아래 가중치로 합산한 값입니다.</p>
+      <p>총점은 팀원 점수를 모두 더한 값이라 <b>인원수가 다르면 총점 차이가 크게 벌어집니다</b>(한 명당 약 55~60점). 인원이 다를 때는 총점 대신 평균으로 비교해주세요.</p>
+    </div>
     <div class="settings-grid">
       <div class="field">
         <label for="teamCount">팀 수</label>
@@ -413,8 +440,11 @@
 
   <!-- 3. 결과 -->
   <div class="card" id="resultCard" style="display:none;">
-    <h2><span class="num">3</span>팀 구성 결과</h2>
-    <p class="hint" style="margin-top:-8px;">개인별 능력치 점수는 표시되지 않습니다. 선수 이름 옆 드롭다운으로 원하는 팀으로 옮기거나(인원수 변동), 아래 "트레이드"로 두 선수를 맞바꿀 수 있습니다(인원수 유지). 명단에서 능력치·신장·포지션을 수정하면 이 결과의 평균과 총점도 자동으로 다시 계산됩니다.</p>
+    <h2><span class="num">3</span>팀 구성 결과<button type="button" class="help-toggle" data-help-for="help3" title="설명 보기">ⓘ</button></h2>
+    <div class="help-box" id="help3" hidden>
+      <p>개인별 능력치 점수는 표시되지 않습니다. 선수 이름 옆 드롭다운으로 원하는 팀으로 옮기거나(인원수 변동), 아래 "트레이드"로 두 선수를 맞바꿀 수 있습니다(인원수 유지).</p>
+      <p>명단에서 능력치·신장·포지션을 수정하면 이 결과의 평균과 총점도 자동으로 다시 계산됩니다.</p>
+    </div>
 
     <div class="legend" id="posLegend"></div>
 
@@ -433,8 +463,11 @@
 
   <!-- 4. 공지용 결과 -->
   <div class="card" id="publicResultCard" style="display:none;">
-    <h2><span class="num">4</span>공지용 결과 <span class="hint" style="font-weight:400;">(평균 능력치·총점 비공개)</span></h2>
-    <p class="hint" style="margin-top:-8px;">동호회 단톡방·게시판 등에 그대로 공지할 수 있도록 능력치·총점 없이 팀 구성만 보여줍니다.</p>
+    <h2><span class="num">4</span>공지용 결과 <span class="hint" style="font-weight:400;">(평균 능력치·총점 비공개)</span><button type="button" class="help-toggle" data-help-for="help4" title="설명 보기">ⓘ</button></h2>
+    <div class="help-box" id="help4" hidden>
+      <p>동호회 단톡방·게시판 등에 그대로 공지할 수 있도록 능력치·총점 없이 팀 구성만 보여줍니다.</p>
+      <p>모바일에서 "카카오톡으로 공유"(텍스트) 또는 "이미지로 공유"(그림)를 누르면 기기의 공유 시트가 열리고, 거기서 카카오톡을 선택해 바로 보낼 수 있습니다. 단, 이미지 공유는 <b>https 주소로 접속했을 때만</b> 동작하며, 로컬 파일로 열었거나 공유 시트를 지원하지 않는 PC 환경에서는 이미지가 대신 저장됩니다. 텍스트는 "텍스트로 복사" 후 카카오톡에 붙여넣어도 됩니다.</p>
+    </div>
 
     <div id="publicCaptureArea" style="padding:6px 2px;background:var(--surface-1);">
       <div style="font-weight:700;font-size:15px;margin-bottom:14px;">🏀 팀 구성 결과</div>
@@ -444,14 +477,10 @@
 
     <div class="toolbar" style="margin-top:16px;">
       <button class="btn-primary" id="shareKakaoBtn">💬 카카오톡으로 공유</button>
+      <button class="btn-primary" id="shareImgBtn">🖼️ 이미지로 공유</button>
       <button class="btn-secondary" id="copyPublicBtn">텍스트로 복사</button>
-      <button class="btn-secondary" id="exportPublicTxtBtn">TXT로 저장</button>
-      <button class="btn-secondary" id="exportPublicImgBtn">🖼️ 이미지로 저장</button>
     </div>
-    <p class="hint" id="shareHint" style="margin-top:8px;">모바일에서는 "카카오톡으로 공유" 버튼을 누르면 기기의 공유 시트가 열리고, 거기서 카카오톡을 선택해 바로 보낼 수 있습니다. PC 등 공유 시트를 지원하지 않는 환경에서는 대신 텍스트가 복사되니 카카오톡 채팅창에 붙여넣어 주세요.</p>
   </div>
-
-  <div class="footer-note">능력치는 1~10점 자기평가/운영진 평가 기준, 종합 점수는 능력치와 신장을 각각 0~100으로 정규화한 뒤 위 가중치로 합산한 값입니다.</div>
 
 </div>
 
@@ -1279,25 +1308,6 @@
 
   const SHARE_TITLE = '이번 주 팀 발표';
 
-  function buildPublicResultText(teams) {
-    return teams.map(t => {
-      const header = t.name + ' (' + t.players.length + '명)';
-      const names = t.players
-        .slice()
-        .sort((a, b) => nameCollator.compare(a.name, b.name))
-        .map(p => '- ' + p.name + ' (' + p.position + ')')
-        .join('\n');
-      return header + '\n' + (names || '(배정된 선수 없음)');
-    }).join('\n\n');
-  }
-
-  // Title line, then a blank line, then the team breakdown - this is baked directly into the
-  // message body (not left to the separate Web Share "title" field) because many share targets,
-  // including KakaoTalk, either ignore that field or format it differently.
-  function buildShareMessage(teams) {
-    return SHARE_TITLE + '\n\n' + buildPublicResultText(teams);
-  }
-
   // Counts Hangul/CJK characters as double-width (roughly how they render in a fixed-width
   // chat font) so space-padded columns line up more evenly than a plain .length count would.
   function visualWidth(str) {
@@ -1449,42 +1459,71 @@
     }
   });
 
-  $('exportPublicTxtBtn').addEventListener('click', () => {
-    if (!lastTeams) { alert('먼저 팀 나누기를 실행해주세요.'); return; }
-    downloadFile(buildShareMessage(lastTeams), 'team_announcement.txt', 'text/plain;charset=utf-8;');
-  });
+  // ---------- 공지용 결과 이미지 ----------
+  const IMAGE_FILE_NAME = 'team_announcement.png';
 
-  $('exportPublicImgBtn').addEventListener('click', () => {
-    if (!lastTeams) { alert('먼저 팀 나누기를 실행해주세요.'); return; }
+  // 공지용 영역을 PNG Blob으로 만들어 돌려준다(저장용·공유용 공통).
+  function renderPublicImageBlob() {
     if (typeof html2canvas === 'undefined') {
-      alert('이미지 저장 기능을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 페이지를 새로고침해서 다시 시도해주세요.');
-      return;
+      return Promise.reject(new Error('html2canvas-missing'));
     }
     const target = $('publicCaptureArea');
-    const btn = $('exportPublicImgBtn');
+    const bg = getComputedStyle(document.querySelector('.viz-root')).getPropertyValue('--surface-1').trim() || '#ffffff';
+    return html2canvas(target, { backgroundColor: bg, scale: 2, useCORS: true })
+      .then(canvas => new Promise((resolve, reject) => {
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('이미지 생성 실패')), 'image/png');
+      }));
+  }
+
+  function downloadImageBlob(blob) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = IMAGE_FILE_NAME;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // 버튼을 "생성 중..."으로 잠갔다가 작업이 끝나면 원래대로 되돌린다.
+  function withImageButtonBusy(btn, busyLabel, work) {
+    if (!lastTeams) { alert('먼저 팀 나누기를 실행해주세요.'); return; }
     const originalLabel = btn.textContent;
     btn.disabled = true;
-    btn.textContent = '이미지 생성 중...';
-    const bg = getComputedStyle(document.querySelector('.viz-root')).getPropertyValue('--surface-1').trim() || '#ffffff';
-    html2canvas(target, { backgroundColor: bg, scale: 2, useCORS: true })
-      .then(canvas => {
-        canvas.toBlob(blob => {
-          if (!blob) throw new Error('이미지 생성 실패');
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'team_announcement.png';
-          a.click();
-          URL.revokeObjectURL(url);
-        }, 'image/png');
-      })
-      .catch(() => {
+    btn.textContent = busyLabel;
+    renderPublicImageBlob()
+      .then(work)
+      .catch(err => {
+        if (err && err.name === 'AbortError') return;          // 사용자가 공유 시트를 닫음
+        if (err && err.message === 'html2canvas-missing') {
+          alert('이미지 기능을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 페이지를 새로고침해서 다시 시도해주세요.');
+          return;
+        }
         alert('이미지를 만드는 중 문제가 발생했습니다. 다시 시도해주세요.');
       })
       .finally(() => {
         btn.disabled = false;
         btn.textContent = originalLabel;
       });
+  }
+
+  // 이미지를 파일로 저장하지 않고 공유 시트로 바로 넘긴다(Web Share API Level 2).
+  // 파일 공유는 https 보안 컨텍스트에서만 동작하므로, 안 되는 환경에서는 저장으로 대체한다.
+  $('shareImgBtn').addEventListener('click', () => {
+    withImageButtonBusy($('shareImgBtn'), '이미지 준비 중...', (blob) => {
+      const file = new File([blob], IMAGE_FILE_NAME, { type: 'image/png' });
+      const data = { files: [file] };
+
+      if (navigator.canShare && navigator.canShare(data) && navigator.share) {
+        return navigator.share(data).catch(err => {
+          if (err && err.name === 'AbortError') return; // 사용자가 공유를 취소함 - 정상
+          downloadImageBlob(blob);
+          alert('공유 시트를 열 수 없어 이미지를 대신 저장했습니다. 저장된 사진을 카카오톡에서 첨부해주세요.');
+        });
+      }
+
+      downloadImageBlob(blob);
+      alert('이 환경은 이미지 바로 공유를 지원하지 않아 이미지를 저장했습니다. 저장된 사진을 카카오톡에서 첨부해주세요.\n\n(모바일에서 https 주소로 접속하면 저장 없이 바로 공유할 수 있습니다.)');
+    });
   });
 
   // ---------- 명단 수정 → 결과 반영 ----------
@@ -1660,6 +1699,20 @@
   if (!storageAvailable && $('autosaveStatus')) {
     $('autosaveStatus').textContent = '이 환경에서는 자동 저장을 사용할 수 없어, 새로고침하면 명단이 사라집니다.';
   }
+  // ---------- 설명(매뉴얼) 토글 ----------
+  // 각 카드 제목의 ⓘ 아이콘을 눌렀을 때만 해당 설명을 펼친다. 기본은 접힌 상태.
+  document.querySelectorAll('.help-toggle').forEach(btn => {
+    const box = $(btn.dataset.helpFor);
+    if (!box) return;
+    btn.setAttribute('aria-expanded', 'false');
+    btn.addEventListener('click', () => {
+      const willOpen = box.hidden;
+      box.hidden = !willOpen;
+      btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+      btn.title = willOpen ? '설명 숨기기' : '설명 보기';
+    });
+  });
+
   loadFromStorage();
   loadTeamColors();
   renderTeamColorRow();
