@@ -309,6 +309,16 @@
     font-size: 12px; color: var(--text-secondary); line-height: 1.7;
   }
   .help-box[hidden] { display: none; }
+
+  /* 공지용 포스터 설정 */
+  .poster-fields { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:16px; }
+  @media (max-width: 720px) { .poster-fields { grid-template-columns: 1fr; } }
+  .poster-modal {
+    position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.72);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .poster-modal img { max-width: min(420px, 90vw); max-height: 80vh; width: auto; border-radius: 10px; display: block; }
+  .poster-modal .pm-box { display: flex; flex-direction: column; align-items: center; gap: 12px; }
   .help-box p { margin: 0; }
   .help-box p + p { margin-top: 8px; }
 
@@ -475,9 +485,26 @@
       <div class="teams-grid" id="teamsGridPublic"></div>
     </div>
 
-    <div class="toolbar" style="margin-top:16px;">
+    <div class="poster-fields">
+      <div class="field">
+        <label for="posterTitle">포스터 제목</label>
+        <input id="posterTitle" type="text" value="농구 대항전" maxlength="14">
+      </div>
+      <div class="field">
+        <label for="posterDate">경기일 표시</label>
+        <input id="posterDate" type="text" placeholder="10.17 SAT" maxlength="24">
+      </div>
+      <div class="field">
+        <label for="posterSlogan">하단 문구</label>
+        <input id="posterSlogan" type="text" placeholder="비우면 랜덤 문구" maxlength="22">
+      </div>
+    </div>
+
+    <div class="toolbar" style="margin-top:14px;">
       <button class="btn-primary" id="shareKakaoBtn">💬 카카오톡으로 공유</button>
       <button class="btn-primary" id="shareImgBtn">🖼️ 이미지로 공유</button>
+      <button class="btn-secondary" id="previewPosterBtn">👀 포스터 미리보기</button>
+      <button class="btn-secondary" id="shufflePosterBtn">🎲 디자인 바꾸기</button>
       <button class="btn-secondary" id="copyPublicBtn">텍스트로 복사</button>
     </div>
   </div>
@@ -1159,6 +1186,7 @@
     const randomize = $('randomize').checked;
 
     lastSplitWeightPct = abilityWeightPct; // 이후 명단 수정 시 같은 가중치로 점수를 다시 계산하기 위해 보관
+    rerollPosterSeed(); // 새로 나눌 때마다 포스터 디자인도 새 모습으로
     lastTeams = splitTeams(attendingPlayers, teamCount, abilityWeightPct, considerPosition, randomize);
     renderResults(lastTeams);
   });
@@ -1459,20 +1487,427 @@
     }
   });
 
+// ===== 경기 포스터 생성 (Canvas 2D) =====
+// html2canvas로는 대각선 분할·원형 VS 배지를 제대로 못 그리므로 캔버스에 직접 그린다.
+// 외부 라이브러리가 필요 없어 오프라인에서도 동작한다.
+
+const POSTER_W = 1080;
+const POSTER_H = 1350;
+
+// 배경색이 밝으면 검은 글씨, 어두우면 흰 글씨.
+function hexToRgb(hex) {
+  const h = String(hex || '').replace('#', '').trim();
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  const n = parseInt(full, 16);
+  if (isNaN(n) || full.length !== 6) return { r: 30, g: 58, b: 138 };
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function relLuminance(hex) {
+  const { r, g, b } = hexToRgb(hex);
+  const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+}
+
+function inkFor(hex) { return relLuminance(hex) > 0.45 ? '#141414' : '#ffffff'; }
+// 제목이 놓이는 배경에 아주 밝은 색이 섞여 있으면 검은 헤더 띠가 필요하다.
+function needsHeaderBand(teams) { return teams.some(t => relLuminance(t.color) > 0.70); }
+function rgba(hex, a) { const { r, g, b } = hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; }
+
+const POSTER_FONT = '"Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif';
+function font(weight, size) { return `${weight} ${size}px ${POSTER_FONT}`; }
+
+// 글자 간격을 벌려서 그린다(캔버스에는 letter-spacing이 없다).
+function drawTracked(ctx, text, cx, y, spacing) {
+  const chars = Array.from(text);
+  const widths = chars.map(c => ctx.measureText(c).width);
+  const total = widths.reduce((a, b) => a + b, 0) + spacing * (chars.length - 1);
+  let x = cx - total / 2;
+  chars.forEach((c, i) => { ctx.fillText(c, x, y); x += widths[i] + spacing; });
+  return total;
+}
+
+function measureTracked(ctx, text, spacing) {
+  const chars = Array.from(text);
+  return chars.reduce((a, c) => a + ctx.measureText(c).width, 0) + spacing * (chars.length - 1);
+}
+
+// 폭에 맞을 때까지 글자 크기를 줄인다.
+function fitFont(ctx, text, weight, startSize, maxWidth, minSize) {
+  let size = startSize;
+  while (size > minSize) {
+    ctx.font = font(weight, size);
+    if (ctx.measureText(text).width <= maxWidth) break;
+    size -= 2;
+  }
+  ctx.font = font(weight, size);
+  return size;
+}
+
+// ----- 디자인 랜덤화 -----
+// 같은 시드면 항상 같은 디자인이 나오도록 시드 기반 난수를 쓴다.
+// (미리보기와 실제 공유 이미지가 달라지는 것을 막기 위해 꼭 필요하다)
+function makeRng(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const POSTER_SLOGANS = [
+  '코트 위에서 승부를 가리자',
+  '오늘도 부상 없이 즐겁게',
+  '끝까지 뛰는 팀이 이긴다',
+  '승부는 코트에서 가린다',
+  '한 골 한 골 최선을 다해',
+  '오늘의 주인공은 바로 우리',
+  '땀 흘린 만큼 즐거워진다',
+  '전력질주, 후회 없이',
+  '좋은 경기 펼쳐봅시다',
+  '공은 둥글다, 끝까지 간다',
+  '이기든 지든 기분 좋게',
+  '오늘 한 판 제대로 붙자'
+];
+
+const POSTER_MOTIFS = ['court', 'stripes', 'dots', 'rings', 'chevron'];
+const POSTER_VS_SHAPES = ['circle', 'diamond', 'square'];
+
+function makeDesign(seed) {
+  const rnd = makeRng(seed);
+  const pick = arr => arr[Math.floor(rnd() * arr.length)];
+  return {
+    motif: pick(POSTER_MOTIFS),
+    vsShape: pick(POSTER_VS_SHAPES),
+    topLean: 0.545 + rnd() * 0.065,     // 대각선 상단 위치
+    botLean: 0.425 + rnd() * 0.065,     // 대각선 하단 위치
+    slogan: pick(POSTER_SLOGANS)
+  };
+}
+
+// 배경 무늬 (디자인마다 달라진다)
+function drawMotif(ctx, w, h, color, motif) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 3;
+
+  if (motif === 'stripes') {
+    ctx.lineWidth = 26;
+    for (let x = -h; x < w + h; x += 92) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + h, h); ctx.stroke();
+    }
+  } else if (motif === 'dots') {
+    for (let y = 70; y < h; y += 76) {
+      for (let x = 46; x < w; x += 76) {
+        ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  } else if (motif === 'rings') {
+    ctx.lineWidth = 16;
+    for (let r = 120; r < w * 1.5; r += 130) {
+      ctx.beginPath(); ctx.arc(w * 0.5, h * 0.46, r, 0, Math.PI * 2); ctx.stroke();
+    }
+  } else if (motif === 'chevron') {
+    ctx.lineWidth = 18;
+    for (let y = -40; y < h + 200; y += 120) {
+      ctx.beginPath();
+      ctx.moveTo(-20, y); ctx.lineTo(w * 0.5, y + 110); ctx.lineTo(w + 20, y);
+      ctx.stroke();
+    }
+  } else {
+    drawCourtLines(ctx, w, h, color);
+  }
+  ctx.restore();
+}
+
+// 배경의 옅은 코트 라인
+function drawCourtLines(ctx, w, h, color) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(w / 2, h * 0.5, w * 0.30, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(w / 2, h * 0.5, w * 0.12, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(w / 2, h * 0.94, w * 0.42, Math.PI, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(w / 2, h * 0.10, w * 0.42, 0, Math.PI); ctx.stroke();
+  ctx.restore();
+}
+
+// 상단 라벨 바 + 제목 + 하단 슬로건 바 (레이아웃 공통)
+function drawChrome(ctx, opts) {
+  const { w, dateText, title, slogan, headerBand } = opts;
+
+  // 아주 밝은 팀 색(흰색 계열) 위에서는 흰 제목이 묻히므로 검은 헤더 띠를 깐다.
+  if (headerBand) {
+    ctx.fillStyle = '#111111';
+    ctx.fillRect(0, 0, w, 330);
+  }
+
+  // 상단 날짜 라벨
+  ctx.font = font(800, 30);
+  const dateW = measureTracked(ctx, dateText, 8);
+  const barW = dateW + 76, barH = 60, barX = (w - barW) / 2, barY = 58;
+  ctx.fillStyle = '#111111';
+  ctx.fillRect(barX, barY, barW, barH);
+  ctx.fillStyle = '#ffffff';
+  ctx.textBaseline = 'middle';
+  drawTracked(ctx, dateText, w / 2, barY + barH / 2 + 1, 8);
+
+  // 제목 (검은 그림자 오프셋)
+  const titleSize = fitFont(ctx, title, 900, 132, w - 130, 60);
+  ctx.textBaseline = 'alphabetic';
+  const titleY = barY + barH + 36 + titleSize * 0.78;
+  ctx.textAlign = 'center';
+  if (!headerBand) { // 띠 위에서는 그림자가 필요 없다
+    ctx.fillStyle = '#111111';
+    ctx.fillText(title, w / 2 + 7, titleY + 7);
+  }
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(title, w / 2, titleY);
+  ctx.textAlign = 'left';
+
+  // 하단 슬로건 바
+  const footH = 112;
+  ctx.fillStyle = '#111111';
+  ctx.fillRect(0, POSTER_H - footH, w, footH);
+  ctx.fillStyle = '#ffffff';
+  ctx.textBaseline = 'middle';
+  ctx.font = font(800, 40);
+  const sloganW = measureTracked(ctx, slogan, 3);
+  const ballGap = 30;
+  ctx.font = font(400, 34);
+  const ballW = ctx.measureText('🏀').width;
+  const totalW = sloganW + (ballW + ballGap) * 2;
+  const startX = (w - totalW) / 2;
+  const footMid = POSTER_H - footH / 2;
+  ctx.fillText('🏀', startX, footMid);
+  ctx.fillText('🏀', startX + totalW - ballW, footMid);
+  ctx.font = font(800, 40);
+  drawTracked(ctx, slogan, w / 2, footMid, 3);
+
+  return { titleBottom: titleY + 24, footTop: POSTER_H - footH };
+}
+
+// 한 팀의 이름/인원/선수 목록
+function drawTeamBlock(ctx, opts) {
+  const { cx, top, bottom, maxW, team, ink, align } = opts;
+  const names = team.players.slice().map(p => p.name);
+
+  ctx.textAlign = align;
+  ctx.textBaseline = 'alphabetic';
+  const ax = align === 'center' ? cx : (align === 'left' ? cx - maxW / 2 : cx + maxW / 2);
+
+  // TEAM 라벨
+  ctx.fillStyle = rgba(ink === '#ffffff' ? '#ffffff' : '#000000', 0.62);
+  ctx.font = font(800, 24);
+  const prevAlign = ctx.textAlign;
+  ctx.textAlign = 'center';
+  const labelCx = align === 'center' ? cx : (align === 'left' ? cx - maxW / 2 + measureTracked(ctx, 'TEAM', 9) / 2
+                                                             : cx + maxW / 2 - measureTracked(ctx, 'TEAM', 9) / 2);
+  ctx.textBaseline = 'middle';
+  drawTracked(ctx, 'TEAM', labelCx, top + 14, 9);
+  ctx.textAlign = prevAlign;
+  ctx.textBaseline = 'alphabetic';
+
+  // 팀 이름
+  const nameSize = fitFont(ctx, team.name, 900, 92, maxW, 40);
+  ctx.fillStyle = ink;
+  const nameY = top + 40 + nameSize * 0.82;
+  ctx.fillText(team.name, ax, nameY);
+
+  // 인원수
+  ctx.font = font(700, 27);
+  ctx.fillStyle = rgba(ink === '#ffffff' ? '#ffffff' : '#000000', 0.68);
+  const countY = nameY + 52;
+  ctx.fillText(team.players.length + '명', ax, countY);
+
+  // 구분선
+  const lineY = countY + 36;
+  const lineLen = Math.min(150, maxW * 0.55);
+  const lx = align === 'center' ? cx - lineLen / 2 : (align === 'left' ? cx - maxW / 2 : cx + maxW / 2 - lineLen);
+  ctx.fillStyle = rgba(ink === '#ffffff' ? '#ffffff' : '#000000', 0.75);
+  ctx.fillRect(lx, lineY, lineLen, 5);
+
+  // 선수 이름 (칸에 맞춰 크기 자동 축소)
+  const listTop = lineY + 46;
+  const avail = bottom - listTop;
+  let size = 62, lineH;
+  for (;;) {
+    lineH = size * 1.30;
+    if (names.length * lineH <= avail || size <= 26) break;
+    size -= 2;
+  }
+  ctx.fillStyle = ink;
+  names.forEach((n, i) => {
+    fitFont(ctx, n, 800, size, maxW, 20);
+    ctx.fillText(n, ax, listTop + lineH * i + size * 0.82);
+  });
+  ctx.textAlign = 'left';
+}
+
+// VS 배지 바탕 (원 / 다이아몬드 / 둥근 사각)
+function drawVsBadgeShape(ctx, cx, cy, r, shape, fill) {
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  if (shape === 'diamond') {
+    ctx.moveTo(cx, cy - r * 1.18); ctx.lineTo(cx + r * 1.18, cy);
+    ctx.lineTo(cx, cy + r * 1.18); ctx.lineTo(cx - r * 1.18, cy);
+    ctx.closePath();
+  } else if (shape === 'square') {
+    const s = r * 0.95, rad = r * 0.22;
+    ctx.moveTo(cx - s + rad, cy - s);
+    ctx.arcTo(cx + s, cy - s, cx + s, cy + s, rad);
+    ctx.arcTo(cx + s, cy + s, cx - s, cy + s, rad);
+    ctx.arcTo(cx - s, cy + s, cx - s, cy - s, rad);
+    ctx.arcTo(cx - s, cy - s, cx + s, cy - s, rad);
+    ctx.closePath();
+  } else {
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  }
+  ctx.fill();
+}
+
+// 2팀: 대각선으로 갈라진 VS 포스터
+function drawVersusPoster(ctx, teams, meta, design) {
+  const w = POSTER_W, h = POSTER_H;
+  const left = teams[0], right = teams[1];
+  const leftColor = left.color, rightColor = right.color;
+  const leftInk = inkFor(leftColor), rightInk = inkFor(rightColor);
+
+  // 대각선 경계 (위가 오른쪽으로 치우치고 아래로 갈수록 왼쪽으로)
+  const topX = w * design.topLean, botX = w * design.botLean;
+
+  ctx.fillStyle = leftColor;
+  ctx.beginPath();
+  ctx.moveTo(0, 0); ctx.lineTo(topX, 0); ctx.lineTo(botX, h); ctx.lineTo(0, h);
+  ctx.closePath(); ctx.fill();
+
+  ctx.fillStyle = rightColor;
+  ctx.beginPath();
+  ctx.moveTo(topX, 0); ctx.lineTo(w, 0); ctx.lineTo(w, h); ctx.lineTo(botX, h);
+  ctx.closePath(); ctx.fill();
+
+  // 코트 라인은 양쪽 잉크색을 섞어 옅게
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(topX, 0); ctx.lineTo(botX, h); ctx.lineTo(0, h); ctx.closePath(); ctx.clip();
+  drawMotif(ctx, w, h, rgba(leftInk, 0.16), design.motif);
+  ctx.restore();
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(topX, 0); ctx.lineTo(w, 0); ctx.lineTo(w, h); ctx.lineTo(botX, h); ctx.closePath(); ctx.clip();
+  drawMotif(ctx, w, h, rgba(rightInk, 0.16), design.motif);
+  ctx.restore();
+
+  // 검은 대각선 띠
+  ctx.save();
+  ctx.strokeStyle = '#111111';
+  ctx.lineWidth = 16;
+  ctx.beginPath(); ctx.moveTo(topX, -10); ctx.lineTo(botX, h + 10); ctx.stroke();
+  ctx.restore();
+
+  const band = needsHeaderBand(teams);
+  const chrome = drawChrome(ctx, { w, dateText: meta.dateText, title: meta.title, slogan: meta.slogan, headerBand: band });
+
+  const blockTop = chrome.titleBottom + 70;
+  const blockBottom = chrome.footTop - 48;
+
+  drawTeamBlock(ctx, { cx: w * 0.245, top: blockTop, bottom: blockBottom, maxW: w * 0.38,
+                       team: left, ink: leftInk, align: 'center' });
+  drawTeamBlock(ctx, { cx: w * 0.775, top: blockTop, bottom: blockBottom, maxW: w * 0.38,
+                       team: right, ink: rightInk, align: 'center' });
+
+  // 가운데 VS 배지
+  const vsY = h * 0.50;
+  const vsX = (topX + botX) / 2;
+  const r = 86;
+  drawVsBadgeShape(ctx, vsX, vsY, r + 9, design.vsShape, '#ffffff');
+  drawVsBadgeShape(ctx, vsX, vsY, r, design.vsShape, '#111111');
+  ctx.fillStyle = '#ffffff';
+  ctx.font = font(900, 62);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('VS', vsX, vsY + 3);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+}
+
+// 3팀 이상: 색상 세로 띠로 나눈 포스터
+function drawColumnsPoster(ctx, teams, meta, design) {
+  const w = POSTER_W, h = POSTER_H;
+  const n = teams.length;
+  const colW = w / n;
+
+  teams.forEach((t, i) => {
+    ctx.fillStyle = t.color;
+    ctx.fillRect(i * colW, 0, colW + 1, h);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(i * colW, 0, colW, h); ctx.clip();
+    drawMotif(ctx, w, h, rgba(inkFor(t.color), 0.14), design.motif);
+    ctx.restore();
+  });
+
+  // 띠 사이 검은 구분선
+  ctx.fillStyle = '#111111';
+  for (let i = 1; i < n; i++) ctx.fillRect(i * colW - 6, 0, 12, h);
+
+  const chrome = drawChrome(ctx, { w, dateText: meta.dateText, title: meta.title, slogan: meta.slogan, headerBand: true });
+  const blockTop = chrome.titleBottom + 56;
+  const blockBottom = chrome.footTop - 40;
+
+  teams.forEach((t, i) => {
+    drawTeamBlock(ctx, {
+      cx: i * colW + colW / 2, top: blockTop, bottom: blockBottom,
+      maxW: colW - 46, team: t, ink: inkFor(t.color), align: 'center'
+    });
+  });
+}
+
+function renderPosterCanvas(teams, meta, seed) {
+  const design = makeDesign(seed || 1);
+  if (!meta.slogan) meta = Object.assign({}, meta, { slogan: design.slogan });
+  const canvas = document.createElement('canvas');
+  canvas.width = POSTER_W;
+  canvas.height = POSTER_H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#111111';
+  ctx.fillRect(0, 0, POSTER_W, POSTER_H);
+  if (teams.length === 2) drawVersusPoster(ctx, teams, meta, design);
+  else drawColumnsPoster(ctx, teams, meta, design);
+  return canvas;
+}
+
   // ---------- 공지용 결과 이미지 ----------
   const IMAGE_FILE_NAME = 'team_announcement.png';
 
-  // 공지용 영역을 PNG Blob으로 만들어 돌려준다(저장용·공유용 공통).
+  // 포스터 디자인 시드. 같은 시드면 미리보기와 공유 이미지가 완전히 같다.
+  let posterSeed = Math.floor(Math.random() * 1e9);
+  function rerollPosterSeed() { posterSeed = Math.floor(Math.random() * 1e9); }
+
+  // 포스터 상단에 들어갈 "10.17 SAT" 형태의 기본 경기일
+  function defaultGameDay() {
+    const d = new Date();
+    const dow = ['SUN','MON','TUE','WED','THU','FRI','SAT'][d.getDay()];
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return mm + '.' + dd + ' ' + dow;
+  }
+
+  function posterMeta() {
+    const date = ($('posterDate').value || '').trim() || defaultGameDay();
+    return {
+      dateText: 'GAME DAY · ' + date,
+      title: ($('posterTitle').value || '').trim() || '농구 대항전',
+      slogan: ($('posterSlogan').value || '').trim() || null
+    };
+  }
+
+  // 포스터를 PNG Blob으로 만들어 돌려준다.
   function renderPublicImageBlob() {
-    if (typeof html2canvas === 'undefined') {
-      return Promise.reject(new Error('html2canvas-missing'));
-    }
-    const target = $('publicCaptureArea');
-    const bg = getComputedStyle(document.querySelector('.viz-root')).getPropertyValue('--surface-1').trim() || '#ffffff';
-    return html2canvas(target, { backgroundColor: bg, scale: 2, useCORS: true })
-      .then(canvas => new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
+      try {
+        const canvas = renderPosterCanvas(lastTeams, posterMeta(), posterSeed);
         canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('이미지 생성 실패')), 'image/png');
-      }));
+      } catch (e) { reject(e); }
+    });
   }
 
   function downloadImageBlob(blob) {
@@ -1494,10 +1929,6 @@
       .then(work)
       .catch(err => {
         if (err && err.name === 'AbortError') return;          // 사용자가 공유 시트를 닫음
-        if (err && err.message === 'html2canvas-missing') {
-          alert('이미지 기능을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 페이지를 새로고침해서 다시 시도해주세요.');
-          return;
-        }
         alert('이미지를 만드는 중 문제가 발생했습니다. 다시 시도해주세요.');
       })
       .finally(() => {
@@ -1699,6 +2130,38 @@
   if (!storageAvailable && $('autosaveStatus')) {
     $('autosaveStatus').textContent = '이 환경에서는 자동 저장을 사용할 수 없어, 새로고침하면 명단이 사라집니다.';
   }
+  // 포스터를 공유 전에 확인할 수 있는 미리보기
+  $('previewPosterBtn').addEventListener('click', () => {
+    withImageButtonBusy($('previewPosterBtn'), '만드는 중...', (blob) => {
+      const url = URL.createObjectURL(blob);
+      const overlay = document.createElement('div');
+      overlay.className = 'poster-modal';
+      const box = document.createElement('div');
+      box.className = 'pm-box';
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = '팀 구성 포스터 미리보기';
+      const close = document.createElement('button');
+      close.className = 'btn-secondary';
+      close.textContent = '닫기';
+      close.style.background = 'var(--surface-1)';
+      const dismiss = () => { overlay.remove(); URL.revokeObjectURL(url); };
+      close.addEventListener('click', dismiss);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) dismiss(); });
+      box.appendChild(img);
+      box.appendChild(close);
+      overlay.appendChild(box);
+      (document.querySelector('.viz-root') || document.body).appendChild(overlay);
+    });
+  });
+
+  $('shufflePosterBtn').addEventListener('click', () => {
+    rerollPosterSeed();
+    $('previewPosterBtn').click();
+  });
+
+  $('posterDate').value = defaultGameDay();
+
   // ---------- 설명(매뉴얼) 토글 ----------
   // 각 카드 제목의 ⓘ 아이콘을 눌렀을 때만 해당 설명을 펼친다. 기본은 접힌 상태.
   document.querySelectorAll('.help-toggle').forEach(btn => {
@@ -1719,6 +2182,5 @@
   renderPlayerTable();
 })();
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </body>
 </html>
