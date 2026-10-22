@@ -1762,12 +1762,22 @@ function drawNamesWrapped(ctx, names, cx, top, maxW, maxH, ink) {
   return top + lines.length * size * 1.28;
 }
 
+// 포스터에 넣을 선수 이름(이름 가나다순).
+// team.players는 "종합 점수가 높은 순"으로 배정된 순서라, 그대로 쓰면 팀 내 서열이 드러난다.
+// 화면 카드·카카오톡 텍스트와 동일하게 가나다순으로 맞춘다.
+function posterNames(team) {
+  return team.players.slice()
+    .sort((a, b) => nameCollator.compare(a.name, b.name))
+    .map(p => p.name);
+}
+
 // ----- 한 팀 블록 (세로형) -----
 function drawTeamBlock(ctx, o) {
   const { cx, bottom, maxW, team, ink, nameStyle } = o;
+  const names = posterNames(team);
   // 머리말(TEAM/팀명/인원/구분선) 높이 + 명단 높이를 더해 남는 공간의 일부만큼 아래로 내린다
   const HEAD_H = 14 + 40 + 92 * 0.82 + 52 + 36 + 5 + 46;
-  const listH = nameListMetrics(team.players.map(p => p.name), bottom - o.top - HEAD_H, nameStyle).height;
+  const listH = nameListMetrics(names, bottom - o.top - HEAD_H, nameStyle).height;
   const slack = Math.max(0, (bottom - o.top) - (HEAD_H + listH));
   const top = o.top + slack * 0.34;
   ctx.textAlign = 'center';
@@ -1793,7 +1803,7 @@ function drawTeamBlock(ctx, o) {
   ctx.fillRect(cx - lineLen / 2, lineY, lineLen, 5);
   ctx.textAlign = 'left';
 
-  drawNameList(ctx, team.players.map(p => p.name), cx, lineY + 46, bottom, maxW, ink, nameStyle);
+  drawNameList(ctx, names, cx, lineY + 46, bottom, maxW, ink, nameStyle);
 }
 
 // ----- VS 배지 -----
@@ -1893,7 +1903,7 @@ function layoutHorizontal(ctx, teams, meta, d) {
   const ts = fitFont(ctx, T.name, 900, 76, w * 0.7, 36);
   ctx.fillStyle = tInk; ctx.fillText(T.name + '  (' + T.players.length + '명)', w / 2, y + 28 + ts * 0.8);
   ctx.textAlign = 'left';
-  drawNamesWrapped(ctx, T.players.map(p => p.name), w / 2, y + 48 + ts, w * 0.82, Math.min(midL, midR) - (y + 56 + ts) - 104, tInk);
+  drawNamesWrapped(ctx, posterNames(T), w / 2, y + 48 + ts, w * 0.82, Math.min(midL, midR) - (y + 56 + ts) - 104, tInk);
 
   // 아래 팀
   let y2 = Math.max(midL, midR) + 104;
@@ -1904,7 +1914,7 @@ function layoutHorizontal(ctx, teams, meta, d) {
   const bs = fitFont(ctx, B.name, 900, 76, w * 0.7, 36);
   ctx.fillStyle = bInk; ctx.fillText(B.name + '  (' + B.players.length + '명)', w / 2, y2 + 28 + bs * 0.8);
   ctx.textAlign = 'left';
-  drawNamesWrapped(ctx, B.players.map(p => p.name), w / 2, y2 + 48 + bs, w * 0.84, footTop - (y2 + 60 + bs) - 20, bInk);
+  drawNamesWrapped(ctx, posterNames(B), w / 2, y2 + 48 + bs, w * 0.84, footTop - (y2 + 60 + bs) - 20, bInk);
 
   drawVsBadge(ctx, w * 0.5, (midL + midR) / 2, 74, d.vsShape);
 }
