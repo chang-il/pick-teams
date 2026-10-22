@@ -317,6 +317,9 @@
 
   /* 공지용 포스터 설정 */
   .poster-fields { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:16px; }
+  /* 날짜 입력칸: 어디를 눌러도 달력이 열리고, 다른 입력칸과 높이를 맞춘다 */
+  .poster-fields input[type=date] { min-height: 38px; appearance: none; -webkit-appearance: none; }
+  .poster-fields input[type=date]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.65; }
   @media (max-width: 720px) { .poster-fields { grid-template-columns: 1fr; } }
   .poster-modal {
     position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.72);
@@ -490,8 +493,8 @@
         <input id="posterTitle" type="text" value="농구 대항전" maxlength="14">
       </div>
       <div class="field">
-        <label for="posterDate">경기일 표시</label>
-        <input id="posterDate" type="text" placeholder="10.17 SAT" maxlength="24">
+        <label for="posterDate">경기일 <span class="hint" id="posterDatePreview" style="font-weight:400;"></span></label>
+        <input id="posterDate" type="date">
       </div>
       <div class="field">
         <label for="posterSlogan">하단 문구</label>
@@ -2002,19 +2005,33 @@ function renderPosterCanvas(teams, meta, seed) {
   let posterSeed = Math.floor(Math.random() * 1e9);
   function rerollPosterSeed() { posterSeed = Math.floor(Math.random() * 1e9); }
 
-  // 포스터 상단에 들어갈 "10.17 SAT" 형태의 기본 경기일
-  function defaultGameDay() {
+  const DOW_EN = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+  // 날짜 입력칸에 넣을 오늘 날짜 (YYYY-MM-DD)
+  function todayIsoDate() {
     const d = new Date();
-    const dow = ['SUN','MON','TUE','WED','THU','FRI','SAT'][d.getDay()];
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return mm + '.' + dd + ' ' + dow;
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  // 'YYYY-MM-DD' → 포스터에 찍히는 '10.22 THU'
+  // new Date('2026-10-22')는 UTC로 해석돼 시간대에 따라 하루가 밀릴 수 있으므로 직접 파싱한다.
+  function formatGameDay(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || '').trim());
+    const d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date();
+    if (isNaN(d.getTime())) return formatGameDay(todayIsoDate());
+    return String(d.getMonth() + 1).padStart(2, '0') + '.' +
+           String(d.getDate()).padStart(2, '0') + ' ' + DOW_EN[d.getDay()];
+  }
+
+  // 날짜 입력칸은 기기 표기법(2026. 10. 22.)으로 보이므로, 포스터에 실제로 찍히는 형태를 옆에 알려준다.
+  function updatePosterDatePreview() {
+    const el = $('posterDatePreview');
+    if (el) el.textContent = '→ ' + formatGameDay($('posterDate').value);
   }
 
   function posterMeta() {
-    const date = ($('posterDate').value || '').trim() || defaultGameDay();
     return {
-      dateText: 'GAME DAY · ' + date,
+      dateText: 'GAME DAY · ' + formatGameDay($('posterDate').value),
       title: ($('posterTitle').value || '').trim() || '농구 대항전',
       slogan: ($('posterSlogan').value || '').trim() || null
     };
@@ -2338,7 +2355,10 @@ function renderPosterCanvas(teams, meta, seed) {
     withImageButtonBusy($('previewPosterBtn'), '만드는 중...', openPosterPreview);
   });
 
-  $('posterDate').value = defaultGameDay();
+  $('posterDate').value = todayIsoDate();
+  $('posterDate').addEventListener('input', updatePosterDatePreview);
+  $('posterDate').addEventListener('change', updatePosterDatePreview);
+  updatePosterDatePreview();
 
   // ---------- 설명(매뉴얼) 토글 ----------
   // 각 카드 제목의 ⓘ 아이콘을 눌렀을 때만 해당 설명을 펼친다. 기본은 접힌 상태.
